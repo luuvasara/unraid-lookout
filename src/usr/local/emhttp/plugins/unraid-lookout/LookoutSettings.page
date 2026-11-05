@@ -1,0 +1,46 @@
+Menu="Lookout:2"
+Title="Settings"
+Tag="gear"
+Markdown="false"
+---
+<?php
+require_once "$docroot/plugins/unraid-lookout/include/lookout.php";
+$config = lk_config();
+$lk_v = substr(md5((string)@md5_file("$docroot/plugins/unraid-lookout/assets/settings.js") . @md5_file("$docroot/plugins/unraid-lookout/assets/style.css")), 0, 10);
+?>
+<link rel="stylesheet" href="/plugins/unraid-lookout/assets/style.css?v=<?=$lk_v?>">
+<div id="settings-panel" class="lk-settings-panel">
+    <table class="lk-settings-table">
+<?php
+$lk_box = fn($k) => '<input type="checkbox" id="cfg-' . $k . '"' . ($config[$k] ? ' checked' : '') . '>';
+$lk_num = fn($k, $min, $max) => '<input type="number" id="cfg-' . $k . '" value="' . intval($config[$k]) . '" min="' . $min . '" max="' . $max . '">';
+$lk_sel = function ($k, $opts) use ($config) {
+  $h = '<select id="cfg-' . $k . '">';
+  foreach ($opts as $v => $t) $h .= '<option value="' . $v . '"' . ($config[$k] === $v ? ' selected' : '') . '>' . $t . '</option>';
+  return $h . '</select>';
+};
+$lk_rows = [
+  ['Monitor Syslog:', $lk_box('monitor_syslog'), 'Reads the system log, where most errors appear. ex. on. Turn it off only if you want to watch just Docker or VMs.'],
+  ['Monitor Docker:', $lk_box('monitor_docker'), "Reads the Docker daemon's log. ex. on. Turn it off if you do not use Docker."],
+  ['Monitor Libvirt:', $lk_box('monitor_libvirt'), 'Reads the log of the VM service. ex. on. Turn it off if you do not use VMs.'],
+  ['Monitor VM Logs:', $lk_box('monitor_vm_logs'), "Reads each VM's own log. ex. on. Turn it off if a VM's guest writes so much there that the list gets noisy."],
+  ['Minimum Severity:', $lk_sel('severity_filter', ['info' => 'Info', 'warning' => 'Warning', 'critical' => 'Critical']), 'Findings below this level are not listed. ex. Warning, to keep notes about harmless messages off the list.'],
+  ['Max Findings:', $lk_num('max_findings', 10, 5000), 'How many findings are kept; the oldest go first. ex. 500. Raise it to keep a longer history.'],
+  ['Dedup Window (sec):', $lk_num('dedup_window', 0, 86400), 'The same message within this time counts on one finding. ex. 300 (5 minutes). Raise it if a slowly repeating message fills the list.'],
+  null,
+  ['Notifications:', $lk_sel('notify', ['off' => 'Off', 'critical' => 'Critical findings', 'warning' => 'Warning and critical findings']), 'Sends an Unraid notification for a new finding. ex. Critical findings, so that only what needs action reaches you.'],
+  ['Notify again after (sec):', $lk_num('notify_cooldown', 300, 604800), 'One notification per rule in this time. ex. 21600 (6 hours), so a repeating error does not fill your inbox. Mute a rule on the Findings tab to stop its notifications.'],
+  ["Read the previous boot's log:", $lk_box('read_previous'), 'Checks the log saved at the last shutdown, once per boot. ex. on, so errors from before this start show up too. Turn it off if you do not keep that log.'],
+];
+foreach ($lk_rows as $r):
+  if ($r === null) { echo "        <tr><td colspan=\"2\"><hr></td></tr>\n"; continue; }
+?>
+        <tr><td><?=$r[0]?></td><td><?=$r[1]?></td></tr>
+        <tr><td colspan="2" class="lk-hint"><?=$r[2]?></td></tr>
+<?php endforeach; ?>
+        <tr><td colspan="2" class="lk-hint">Your own rules: custom-rules.json in /boot/config/plugins/unraid-lookout/.</td></tr>
+        <tr><td colspan="2"><button type="button" class="lk-btn" id="btn-save-config">Save &amp; Reload</button></td></tr>
+    </table>
+    <p class="lk-hint" id="lk-settings-note" role="status"></p>
+</div>
+<script src="/plugins/unraid-lookout/assets/settings.js?v=<?=$lk_v?>"></script>

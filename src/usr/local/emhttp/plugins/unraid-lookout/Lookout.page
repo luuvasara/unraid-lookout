@@ -1,0 +1,7 @@
+Menu="Utilities"
+Type="xmenu"
+Title="Lookout"
+Icon="lookout.png"
+Tag="eye"
+Tabs="true"
+---

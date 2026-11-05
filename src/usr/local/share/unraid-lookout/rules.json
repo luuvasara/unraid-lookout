@@ -1,0 +1,1625 @@
+{
+  "version": "1.0.0",
+  "description": "Lookout rule database: log patterns, what they mean and what to do",
+  "rules": [
+    {
+      "id": "parity-corrected-p",
+      "category": "array",
+      "name": "Parity 1 sync corrected errors",
+      "pattern": "kernel:.*md:.*recovery thread:.*P corrected.*sector=",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Main > Array Operations > Parity Check",
+      "config_file": "",
+      "description": "Parity 1 corrected data during a sync or check. A small number after unclean shutdown is normal. Persistent errors across clean reboots suggest a failing drive.",
+      "recommendation": "If errors persist after a clean reboot: run a non-correcting check. If it still shows errors, suspect hardware — check SMART reports and cables."
+    },
+    {
+      "id": "parity-corrected-q",
+      "category": "array",
+      "name": "Parity 2 sync corrected errors",
+      "pattern": "kernel:.*md:.*recovery thread:.*Q corrected.*sector=",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Main > Array Operations > Parity Check",
+      "config_file": "",
+      "description": "Parity 2 corrected data during sync. Same diagnostic path as Parity 1.",
+      "recommendation": "Run a non-correcting parity check after a clean reboot to verify. Check SMART data on all array drives."
+    },
+    {
+      "id": "parity-recurring-errors",
+      "category": "array",
+      "name": "Recurring parity sync errors across checks",
+      "pattern": "kernel:.*md:.*(?:sync|check).*(?:error|incorrect)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Array Operations > Parity Check",
+      "config_file": "",
+      "description": "Parity errors that recur on every check are frequently caused by faulty RAM, not disk failure. Even if memtest86 passes for 24 hours, intermittent errors under load can cause parity drift. Also caused by HBA controller issues or cable problems.",
+      "recommendation": "Run memtest86 for 48+ hours. Check ALL SATA/SAS cables. If you recently swapped motherboard/CPU/RAM/HBA, a full correcting parity rebuild is required — the XOR computation path changed.",
+      "exclude_pattern": "(?:errors?|errs)=0\\b"
+    },
+    {
+      "id": "parity-errors-after-hw-swap",
+      "category": "array",
+      "name": "Thousands of parity errors after hardware change",
+      "pattern": "kernel:.*md:.*recovery thread:.*P incorrect",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Main > Array Operations > Parity Check",
+      "config_file": "",
+      "description": "After changing motherboard, CPU, RAM, or HBA controller, existing parity becomes invalid because the XOR computation path changed. This is EXPECTED — data on drives is fine, parity just needs recomputing.",
+      "recommendation": "Run a full correcting parity build. Do NOT replace drives — this is normal after hardware changes."
+    },
+    {
+      "id": "md-read-error",
+      "category": "array",
+      "name": "Array read error",
+      "pattern": "kernel:.*md:.*read error",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Array Devices",
+      "config_file": "",
+      "description": "The md driver could not read from an array disk. The drive may be failing or there may be a connection issue.",
+      "recommendation": "Check SMART reports for the affected drive. Inspect SATA/SAS cables and swap ports. Consider running an extended SMART test."
+    },
+    {
+      "id": "md-write-error",
+      "category": "array",
+      "name": "Array write error",
+      "pattern": "kernel:.*md:.*write error",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Array Devices",
+      "config_file": "",
+      "description": "The md driver could not write to an array disk. Drive may be failing or disconnected.",
+      "recommendation": "Check SMART reports, cables, and backplane. This drive may need replacement."
+    },
+    {
+      "id": "disk-disabled",
+      "category": "array",
+      "name": "Array disk disabled",
+      "pattern": "kernel:.*md:.*disabled",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Array Devices",
+      "config_file": "/boot/config/disk.cfg",
+      "description": "A disk was kicked from the array. Far too many drives have been thrown out or RMA'd for this when the real problem was a bad cable, PSU delivering unstable power, or SFF-8087 connector not fully seated into the HBA card. The drive itself may be perfectly fine.",
+      "recommendation": "Do NOT start a rebuild until you verify the disk is truly bad. Reseat all cables. Swap SATA ports. Check PSU rails. Try a different controller port. Run a SMART extended test."
+    },
+    {
+      "id": "disk-emulated-slow",
+      "category": "array",
+      "name": "Disk disabled, contents emulated (slow access)",
+      "pattern": "(?:contents emulated|emulated disk)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Main > Array Devices",
+      "config_file": "",
+      "description": "The drive was disabled (possibly by a transient cable/power issue, not actual failure). Unraid reconstructs content in real-time from parity and all other drives — this is why access is extremely slow.",
+      "recommendation": "Check if the drive is actually healthy (SMART test). If healthy, rebuild: Main > click drive > Rebuild. Performance returns to normal after rebuild completes."
+    },
+    {
+      "id": "array-failed-device-misleading",
+      "category": "array",
+      "name": "Array has failed device (misleading)",
+      "pattern": "Array has \\d+ failed device",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Main > Array Devices",
+      "config_file": "",
+      "description": "This message appears when parity is marked as invalid, regardless of actual device health. No device may have actually failed — parity may simply need rebuilding.",
+      "recommendation": "Check actual drive health via SMART reports. The message is a known misleading UI issue. Start a parity build if parity is truly invalid."
+    },
+    {
+      "id": "smart-udma-crc",
+      "category": "disk",
+      "name": "UDMA CRC errors (cable/connection issue)",
+      "pattern": "(?:UDMA.?CRC|attribute.*199.*Raw_value|Ultra_DMA_CRC_Error_Count)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Tools > SMART Reports",
+      "config_file": "",
+      "description": "UDMA CRC errors are almost NEVER a drive fault. They indicate communication problems between the drive and controller — bad cable, power cables routed parallel to data cables causing interference, overloaded PSU, or faulty SATA splitter.",
+      "recommendation": "Replace the SATA cable. Use Velcro instead of tight zip ties. Route power cables at 90-degree crossing to data cables. Try a different motherboard port. Check the backplane. Do NOT replace the drive."
+    },
+    {
+      "id": "smart-reallocated",
+      "category": "disk",
+      "name": "Reallocated sectors increasing",
+      "pattern": "(?:Reallocated_Sector|attribute.*5.*Raw_value|reallocated sector count)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Tools > SMART Reports",
+      "config_file": "",
+      "description": "The drive is remapping bad sectors to spare area. A rising count indicates drive degradation.",
+      "recommendation": "Monitor the trend. If count is rising steadily, plan a drive replacement. Run extended SMART test."
+    },
+    {
+      "id": "smart-pending-ssd-firmware",
+      "category": "disk",
+      "name": "SSD pending sectors (possible firmware quirk)",
+      "pattern": "(?:Current_Pending_Sector|attribute.*197.*Raw_value)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Tools > SMART Reports",
+      "config_file": "",
+      "description": "On certain SSDs (notably Crucial MX500), pending sectors briefly spike to 1 then return to 0 — this is a known firmware behavior, not drive failure. Only concerning if the value trends upward persistently.",
+      "recommendation": "Monitor over time. If pending sectors resolve without reallocated sectors increasing, this is likely benign firmware behavior. Only replace if values trend upward consistently."
+    },
+    {
+      "id": "sense-key-medium-error",
+      "category": "disk",
+      "name": "Sense Key: Medium Error",
+      "pattern": "kernel:.*sd.*Sense Key\\s*:\\s*Medium Error",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Tools > SMART Reports",
+      "config_file": "",
+      "description": "Can be caused by a faulty SAS-to-SATA breakout cable, not the drive. When multiple drives show similar errors simultaneously, the common link is the cable, backplane, or controller — not all drives failing at once.",
+      "recommendation": "Replace breakout cables. Check controller. Test the drive in a known-good port directly on the motherboard. Check if other drives on the same cable/controller show issues."
+    },
+    {
+      "id": "ata-link-slow",
+      "category": "disk",
+      "name": "SATA link slow to respond / speed downgrade",
+      "pattern": "ata\\d+.*(?:link is slow|COMRESET|SError|hard reset|soft reset|SATA link down \\(SStatus [1-9a-f])",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Tools > SMART Reports",
+      "config_file": "",
+      "description": "Almost always a bad SATA PCIe expansion card or cable issue, not drive failure. The link renegotiates down to a slower speed due to communication errors.",
+      "recommendation": "Replace the SATA expansion card. Replace cables. Try the drive on the motherboard's built-in SATA ports. Disable SATA hot-plug in BIOS if not needed."
+    },
+    {
+      "id": "shucked-drive-no-power",
+      "category": "disk",
+      "name": "Drive does not respond on its SATA link",
+      "pattern": "kernel:.*ata\\d+.*(?:device not ready|softreset failed)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "",
+      "config_file": "",
+      "description": "A drive stopped answering on its SATA link. Cables and power are the usual cause. On a drive taken out of a USB enclosure, the 3.3V pin of the SATA power connector can also hold it off.",
+      "recommendation": "Check the SATA and power cables and try another port. If it is a shucked drive that never spins up, cover pin 3 of the SATA power connector with Kapton tape or use a Molex-to-SATA adapter."
+    },
+    {
+      "id": "disk-spin-up-fail",
+      "category": "disk",
+      "name": "Disk failed to spin up",
+      "pattern": "kernel:.*\\bsd[a-z]+\\b.*(?:not ready|spin.?up.*(?:fail|timeout)|START_STOP FAILED)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Disk Settings > Spin down delay",
+      "config_file": "/boot/config/disk.cfg",
+      "description": "A disk did not spin up when accessed. Could be failing motor, insufficient PSU power with many drives, or the 3.3V shucked drive issue.",
+      "recommendation": "Try powering off and on. Check power supply — insufficient power can prevent spin-up with many drives. For shucked WD drives, check the 3.3V pin issue."
+    },
+    {
+      "id": "disk-wrong-size",
+      "category": "disk",
+      "name": "Large drive shows as 2TB",
+      "pattern": "(?:capacity.*2\\.?0\\s*TB|2199023255552|sector count.*wrong)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Main > Array Devices",
+      "config_file": "",
+      "description": "Drive was partitioned with MBR instead of GPT. MBR has a hard 2TB limit. Not a drive or controller limitation.",
+      "recommendation": "Repartition the drive with GPT. Unraid can do this when you format the drive from the WebGUI."
+    },
+    {
+      "id": "io-error-generic",
+      "category": "disk",
+      "name": "I/O error on block device",
+      "pattern": "kernel:.*(?:I/O error|Buffer I/O error).*dev\\s+(?:sd|nvme)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Tools > SMART Reports",
+      "config_file": "",
+      "description": "Kernel reported an I/O error. Could be disk failure, cable issue, controller problem, or USB enclosure disconnecting.",
+      "recommendation": "Match the device name (sdX/nvmeXnY) to a specific disk. Check SMART data. Inspect physical connections. If USB, check controller and enclosure."
+    },
+    {
+      "id": "nvme-controller-down",
+      "category": "disk",
+      "name": "NVMe drive stopped responding",
+      "pattern": "kernel:.*\\bnvme nvme\\d+:.*(?:controller is down|failure state error detected|frozen state error detected|Removing after probe failure|Disabling device after reset failure|I/O \\d+ QID \\d+ timeout)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Pool Devices",
+      "config_file": "",
+      "description": "An NVMe drive stopped answering. Anything on it can hang, and in a pool the other devices wait too.",
+      "recommendation": "Reseat the drive, check its temperature, and move it to another slot if it repeats. If the line mentions a power saving mode, try 'nvme_core.default_ps_max_latency_us=0' in the boot parameters."
+    },
+    {
+      "id": "usb-enclosure-disconnect",
+      "category": "disk",
+      "name": "USB drive randomly disconnects",
+      "pattern": "kernel:.*sd.*Device offline.*not ready after error recovery",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Disk Settings > Spin down delay",
+      "config_file": "/boot/config/disk.cfg",
+      "description": "USB enclosure firmware has its own spindown/sleep timer that conflicts with Unraid's. The enclosure puts the drive to sleep, Linux marks it offline. When the enclosure wakes up, the drive re-enumerates with a new device name.",
+      "recommendation": "Disable spindown in Unraid for USB-connected drives. The enclosure's own power management may be incompatible with Unraid. Use a different enclosure or connect drives directly."
+    },
+    {
+      "id": "btrfs-csum-failed",
+      "category": "filesystem",
+      "name": "BTRFS checksum failure",
+      "pattern": "BTRFS.*csum failed",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "",
+      "description": "Could be bad RAM, not a failing drive. BTRFS checksums detect ALL corruption regardless of source — RAM bit-flips during write cause the same error as a failing drive.",
+      "recommendation": "Run memtest86 FIRST to rule out RAM. Then check SMART on the cache drive. Run 'btrfs scrub' to identify affected files."
+    },
+    {
+      "id": "btrfs-degraded",
+      "category": "filesystem",
+      "name": "BTRFS mounting degraded",
+      "pattern": "BTRFS.*allowing degraded mounts",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "",
+      "description": "BTRFS pool is running with a missing device. Data redundancy is lost if using RAID1.",
+      "recommendation": "Identify the missing cache device. Check physical connections. If the drive failed, replace it and re-add to the pool."
+    },
+    {
+      "id": "btrfs-dev-missing",
+      "category": "filesystem",
+      "name": "BTRFS device missing",
+      "pattern": "BTRFS.*devid.*is missing",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "",
+      "description": "A simple SATA port change can cause this. The device in the BTRFS pool cannot be found because its /dev path changed, not because the drive is gone.",
+      "recommendation": "Check that all cache drives are connected and visible in /dev. Verify device assignments haven't shifted."
+    },
+    {
+      "id": "btrfs-transid-verify",
+      "category": "filesystem",
+      "name": "BTRFS transid verification failed (docker.img)",
+      "pattern": "BTRFS.*parent transid verify failed",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Docker",
+      "config_file": "/boot/config/docker.cfg",
+      "description": "Usually the docker.img loopback file, NOT the cache drive itself. Corrupted by unclean shutdown or cache filling up. This is NOT a cache drive hardware failure.",
+      "recommendation": "Settings > Docker > Disable > delete docker.img > re-enable Docker. Unraid creates a fresh docker.img. Re-download container images (appdata is preserved separately)."
+    },
+    {
+      "id": "btrfs-no-space-plenty-free",
+      "category": "filesystem",
+      "name": "BTRFS no space despite free space showing",
+      "pattern": "(?:BTRFS|btrfs).*(?:ENOSPC|[Nn]o space left)(?!.*(?:/var/log|tmpfs|docker))",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "",
+      "description": "BTRFS allocates space in separate chunks for data and metadata. Metadata chunks can be full even when data chunks have plenty of space. Also caused by orphaned Docker BTRFS subvolumes from old containers.",
+      "recommendation": "Run 'btrfs balance start -dusage=50 /mnt/cache' to rebalance. Clean up orphaned Docker subvolumes. Check 'btrfs fi show' and 'btrfs fi df /mnt/cache' for actual allocation."
+    },
+    {
+      "id": "btrfs-readonly",
+      "category": "filesystem",
+      "name": "BTRFS cache suddenly read-only",
+      "pattern": "BTRFS.*(?:forced readonly|remounting read-only|read-only filesystem)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "",
+      "description": "BTRFS defensively remounts read-only on ANY error, making transient issues look catastrophic. Often caused by unclean shutdown, cache briefly filling up, or a transient I/O error. The underlying drive may be perfectly fine.",
+      "recommendation": "Stop array, run 'btrfs check /dev/sdX1', then 'btrfs check --repair /dev/sdX1' if needed. Reboot. If caused by full cache, free space and rebalance."
+    },
+    {
+      "id": "btrfs-io-failure",
+      "category": "filesystem",
+      "name": "BTRFS write failure",
+      "pattern": "BTRFS.*(?:errno=-\\d+ IO failure|Transaction aborted|error writing primary super block|lost super block write|Skipping commit of aborted)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Pool Devices",
+      "config_file": "",
+      "description": "BTRFS could not write to a device. Usually the device or its connection failed. The pool often turns read-only right after.",
+      "recommendation": "Look at the device in the lines around it. Check its cable or slot and its SMART report. Use 'btrfs device stats' on the pool after the cause is fixed."
+    },
+    {
+      "id": "btrfs-dev-extents",
+      "category": "filesystem",
+      "name": "BTRFS dev extents verification failed",
+      "pattern": "BTRFS.*failed to verify dev extents against chunks",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "",
+      "description": "Serious BTRFS metadata inconsistency.",
+      "recommendation": "Run 'btrfs check --readonly' first. If repairable, use 'btrfs check --repair'. Backup data first if accessible."
+    },
+    {
+      "id": "unmountable-after-power-loss",
+      "category": "filesystem",
+      "name": "Unmountable: Wrong or No File System",
+      "pattern": "(?:Unmountable|unmountable).*(?:[Ww]rong|[Nn]o).*[Ff]ile.?[Ss]ystem",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Array Devices",
+      "config_file": "",
+      "description": "After unclean shutdown, XFS/BTRFS journal was mid-write. The filesystem is usually recoverable. DO NOT format the drive if prompted by the WebGUI — your data is likely intact.",
+      "recommendation": "Run 'xfs_repair -v /dev/mdX' (for XFS) or 'btrfs check /dev/sdX1' (for BTRFS). Most filesystems recover cleanly. Use a UPS to prevent recurrence."
+    },
+    {
+      "id": "unmountable-after-upgrade",
+      "category": "filesystem",
+      "name": "Unmountable pool after Unraid upgrade",
+      "pattern": "Unmountable.*(?:after|upgrade|update)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Tools > Update OS",
+      "config_file": "",
+      "description": "BTRFS/ZFS kernel module version changes during Unraid upgrades can temporarily prevent mounting. The data is intact. Known issue across multiple upgrade paths (6.12.x, 7.0.0).",
+      "recommendation": "Reboot first. For ZFS: 'zpool import <poolName>'. For BTRFS: manually mount from command line to verify data. Check Unraid forums for version-specific workarounds."
+    },
+    {
+      "id": "xfs-corruption",
+      "category": "filesystem",
+      "name": "XFS filesystem corruption",
+      "pattern": "XFS.*(?:corruption detected|Corruption of in-memory|Internal error)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Array Devices",
+      "config_file": "",
+      "description": "Bad RAM is a common XFS corruption cause. The filesystem itself is a victim, not the source.",
+      "recommendation": "Run memtest86 FIRST. Then 'xfs_repair' on the affected drive (array must be stopped or drive unassigned)."
+    },
+    {
+      "id": "cache-pool-wrong-state",
+      "category": "filesystem",
+      "name": "Cache pool wrong state",
+      "pattern": "(?:WRONG POOL STATE|CACHE.*TOO MANY MISSING|CACHE.*INVALID EXPANSION)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "/boot/config/disk.cfg",
+      "description": "Cache pool detected inconsistent state. Drives may be missing, misassigned, or pool metadata is corrupt.",
+      "recommendation": "Do not force start. Check that all cache drives are physically connected. If a drive was replaced, reassign it properly in the UI."
+    },
+    {
+      "id": "shfs-no-space",
+      "category": "shares",
+      "name": "User share: no space left",
+      "pattern": "shfs:.*[Nn]o space left on device",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Shares > [Share] > Minimum Free Space",
+      "config_file": "/boot/config/shares/",
+      "description": "All included disks have less free space than the minimum threshold.",
+      "recommendation": "Increase disk capacity, reduce the minimum free space setting, or include additional disks in the share."
+    },
+    {
+      "id": "shfs-cache-full",
+      "category": "shares",
+      "name": "User share cache entries exhausted",
+      "pattern": "shfs:.*share cache full",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Global Share Settings",
+      "config_file": "/boot/config/share.cfg",
+      "description": "The FUSE user share filesystem ran out of cache entries.",
+      "recommendation": "Reduce the number of files on the array, or consider splitting into more shares."
+    },
+    {
+      "id": "shfs-assertion-shares-empty",
+      "category": "shares",
+      "name": "User shares appear empty (shfs crash)",
+      "pattern": "shfs:.*(?:Assertion|assertion|unlink_node)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Global Share Settings",
+      "config_file": "",
+      "description": "Shares appear empty but files are still on disks. The shfs FUSE daemon crashed, causing /mnt/user to disappear. Files are always accessible via /mnt/diskX/ paths directly. This is NOT data loss.",
+      "recommendation": "Reboot to restart shfs. Files are accessible directly at /mnt/diskX/. Check share include/exclude disk settings haven't changed."
+    },
+    {
+      "id": "smb-access-denied",
+      "category": "shares",
+      "name": "SMB access denied",
+      "pattern": "smbd.*(?:denied|NT_STATUS_ACCESS_DENIED|NT_STATUS_LOGON_FAILURE)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Shares > [Share] > SMB Security",
+      "config_file": "/boot/config/smb-extra.conf",
+      "description": "After Windows updates, SMB protocol version or signing requirements may have changed. Windows removed SMB1 support in recent updates.",
+      "recommendation": "Clear cached credentials on Windows ('net use * /delete'). Check Unraid SMB settings. Verify Windows SMB client version requirements."
+    },
+    {
+      "id": "docker-no-space",
+      "category": "docker",
+      "name": "Docker: no space on image",
+      "pattern": "(?:docker|dockerd|level=\\w+).*no space left on device",
+      "log_sources": [
+        "syslog",
+        "docker"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Docker > Docker vDisk Size",
+      "config_file": "/boot/config/docker.cfg",
+      "description": "Docker image file (docker.img) is full.",
+      "recommendation": "Increase Docker vDisk size in Settings > Docker. Prune unused images with 'docker system prune'. Moving Docker to a larger cache drive also helps."
+    },
+    {
+      "id": "docker-layer-not-exist",
+      "category": "docker",
+      "name": "Docker layer does not exist",
+      "pattern": "(?:docker|dockerd).*(?:layer does not exist|failed to register layer)",
+      "log_sources": [
+        "syslog",
+        "docker"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Docker",
+      "config_file": "/boot/config/docker.cfg",
+      "description": "The underlying docker.img BTRFS filesystem is corrupted, usually caused by cache full or unclean shutdown — not a Docker bug.",
+      "recommendation": "Delete and recreate docker.img: Settings > Docker > Disable > delete docker.img > re-enable Docker."
+    },
+    {
+      "id": "docker-permission-denied-oci",
+      "category": "docker",
+      "name": "Docker OCI runtime permission denied",
+      "pattern": "(?:docker|dockerd).*(?:OCI runtime.*permission denied|Execution Error.*Bad Parameter)",
+      "log_sources": [
+        "syslog",
+        "docker"
+      ],
+      "severity": "critical",
+      "setting_path": "Tools > Docker Safe New Perms",
+      "config_file": "",
+      "description": "Someone ran the 'New Permissions' tool on the appdata share instead of 'Docker Safe New Perms'. The standard permissions tool strips execute bits and changes ownership that Docker containers depend on.",
+      "recommendation": "Run 'Docker Safe New Perms' from Tools menu. For severe cases, restore appdata from backup. NEVER run 'New Permissions' on the appdata share."
+    },
+    {
+      "id": "docker-sqlite-locked",
+      "category": "docker",
+      "name": "Container SQLite database locked",
+      "pattern": "(?:SqliteError|sqlite3).*database is locked",
+      "log_sources": [
+        "docker"
+      ],
+      "severity": "warning",
+      "setting_path": "Docker > Container Path Mappings",
+      "config_file": "",
+      "description": "Container appdata/database is stored on SMB/CIFS or improperly configured NFS mount. SQLite requires POSIX file locking which SMB does not support.",
+      "recommendation": "Store ALL container databases on local storage (cache SSD, not network shares). If SMB is unavoidable, mount with 'nobrl' option."
+    },
+    {
+      "id": "docker-oom-killed",
+      "category": "docker",
+      "name": "Container killed by OOM",
+      "pattern": "(?:Out of memory|oom-kill|oom_reaper|invoked oom-killer)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Docker > Container memory limits",
+      "config_file": "",
+      "description": "Often caused by Plex Transcoder (can consume 50+ GB when transcoding to /tmp in RAM), unraid-api Connect plugin (known memory leak consuming 2+ GB), or multiple container reconfigurations stacking resource spikes.",
+      "recommendation": "Identify the memory hog with 'docker stats'. For Plex: configure transcoding to use a disk-backed temp dir, NOT /tmp. For unraid-api: restart the Connect plugin. Set memory limits on containers.",
+      "exclude_pattern": "Fix Common Problems"
+    },
+    {
+      "id": "docker-service-failed",
+      "category": "docker",
+      "name": "Docker service failed to start",
+      "pattern": "Docker [Ss]ervice failed to start",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Docker",
+      "config_file": "/boot/config/docker.cfg",
+      "description": "Multiple possible causes: (a) Corrupted docker.img, (b) Docker image file too small, (c) Cache pool has errors, (d) docker.img was accidentally moved to the array by the mover.",
+      "recommendation": "Check docker.img size and location. Verify cache pool health. Ensure 'system' share uses cache. Delete and recreate docker.img if corrupted."
+    },
+    {
+      "id": "docker-daemon-error",
+      "category": "docker",
+      "name": "Docker daemon error",
+      "pattern": "(?:dockerd.*(?:error|fatal|panic)|level=(?:fatal|panic))",
+      "exclude_pattern": "level=(?:info|warning|debug)",
+      "log_sources": [
+        "docker",
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Docker",
+      "config_file": "/boot/config/docker.cfg",
+      "description": "Docker daemon logged an error.",
+      "recommendation": "Check /var/log/docker.log for context. Restarting Docker service may help. If persistent, check docker.img integrity."
+    },
+    {
+      "id": "compose-stack-failed",
+      "category": "docker",
+      "name": "Compose stack failed to start",
+      "pattern": "compose\\.manager:.*\\[ERROR\\].*(?:failed to start|Failed to start stack)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Docker > Compose",
+      "config_file": "",
+      "description": "The Compose Manager plugin could not start a stack, so its containers are not running.",
+      "recommendation": "Open the stack on the Docker tab and start it by hand to see the error. A common cause at boot is a share or network that is not ready yet."
+    },
+    {
+      "id": "macvlan-call-trace",
+      "category": "network",
+      "name": "macvlan kernel call traces",
+      "pattern": "(?:macvlan|br0).*(?:Call Trace|call trace|WARNING)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Docker > Docker custom network type",
+      "config_file": "/boot/config/docker.cfg",
+      "description": "Known Linux kernel bug — macvlan is unstable when its parent interface is a bridge (br0). This is NOT a hardware problem and NOT a kernel panic. The scary call traces are misleading.",
+      "recommendation": "Settings > Docker > Advanced > Change 'Docker custom network type' from macvlan to ipvlan. Or in 6.12.4+, disable bridging on eth0 to use macvtap instead."
+    },
+    {
+      "id": "realtek-tcp-failure",
+      "category": "network",
+      "name": "Realtek NIC TCP failures (ping works)",
+      "pattern": "\\br8169\\b.*(?:\\berror\\b|reset|tx timeout|link down)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Plugins > Install Realtek driver plugin",
+      "config_file": "",
+      "description": "Realtek RTL8125/8126 2.5/5GbE NICs with the kernel's built-in r8169 driver causes silent packet loss. ICMP (ping) works but TCP connections fail. RX ring buffer exhaustion related to PCIe ASPM.",
+      "recommendation": "Install the dedicated Realtek r8125/r8126 driver plugin. Blacklist the r8169 driver. Add 'pcie_aspm=off' to boot parameters.",
+      "exclude_pattern": "(?:PCIe Bus Error|error status/mask|\\[\\s*\\d+\\] Timeout)"
+    },
+    {
+      "id": "realtek-system-freeze",
+      "category": "network",
+      "name": "System lockup with Realtek NIC",
+      "pattern": "\\br8169\\b.*watchdog",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Plugins > Install Realtek driver plugin",
+      "config_file": "",
+      "description": "System freezes/lockups with Realtek 2.5GbE NICs look like hardware failure but are purely a driver issue. The generic r8169 driver does not properly handle these newer chips.",
+      "recommendation": "Blacklist r8169 driver, install dedicated r8125/r8126 driver plugin. Add 'pcie_aspm=off' to boot parameters.",
+      "exclude_pattern": "(?:PCIe Bus Error|error status/mask|\\[\\s*\\d+\\] Timeout)"
+    },
+    {
+      "id": "nic-tx-timeout",
+      "category": "network",
+      "name": "Network card stopped sending",
+      "pattern": "(?:NETDEV WATCHDOG.*transmit queue \\d+ timed out|\\beth\\d+: (?:Transmit timeout reset Device|Device reseting))",
+      "exclude_pattern": "\\br8169\\b",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Network Settings",
+      "config_file": "",
+      "description": "The network card stopped sending for some seconds and its driver reset it. Connections can drop for a moment. If it comes back, the usual causes are the driver, PCIe power saving, or a heavy transfer at that moment.",
+      "recommendation": "Note the time: the same time of day points to a scheduled job. Try 'pcie_aspm=off' in the boot parameters, and check that the driver for this card is current."
+    },
+    {
+      "id": "nfs-stale-handle",
+      "category": "network",
+      "name": "NFS stale file handle",
+      "pattern": "(?:NFS|nfs).*[Ss]tale.*(?:file|handle)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Shares > [Share] > NFS Settings",
+      "config_file": "",
+      "description": "The mover moved files between cache and array, changing the underlying filesystem path. NFS v3 cannot handle this. Disk spin-down can also trigger this.",
+      "recommendation": "Force NFS v4.2 on clients (vers=4.2). Or configure shares as cache-only or array-only to prevent mover-induced path changes."
+    },
+    {
+      "id": "bond-link-down",
+      "category": "network",
+      "name": "Network bond link failure",
+      "pattern": "\\bbond(?:ing|\\d+)\\b.*link.*(?:down|failed)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Network Settings > Bonding",
+      "config_file": "/boot/config/network.cfg",
+      "description": "If using 802.3ad/LACP, the switch must be configured to match. This is almost always a switch configuration issue, not NIC hardware failure.",
+      "recommendation": "Configure the switch with a matching LACP group. Ensure both sides use the same hash policy."
+    },
+    {
+      "id": "nic-link-down",
+      "category": "network",
+      "name": "Network link down",
+      "pattern": "kernel:.*(?:eth|enp|eno)\\d+.*link is down",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Network Settings",
+      "config_file": "/boot/config/network.cfg",
+      "description": "A network interface lost link.",
+      "recommendation": "Check cable and switch port status. Try a different cable."
+    },
+    {
+      "id": "macvlan-conflict",
+      "category": "docker",
+      "name": "Docker macvlan IP conflict",
+      "pattern": "\\b(?:macvlan|br\\d+)\\b.*(?:error|already exists|address.*collision|duplicate)",
+      "log_sources": [
+        "syslog",
+        "docker"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Docker > Docker custom network type",
+      "config_file": "/boot/config/docker.cfg",
+      "description": "IP address collision between a container and another device on the network.",
+      "recommendation": "Ensure container IPs don't overlap with DHCP range or other static IPs. Use ipvlan instead of macvlan if problems persist."
+    },
+    {
+      "id": "mce-hardware-error",
+      "category": "hardware",
+      "name": "Uncorrected machine check (CPU or memory)",
+      "pattern": "kernel:.*(?:\\[Hardware Error\\]|\\bmce:|\\bMachine check).*(?:uncorrect|\\bfatal\\b|context corrupt|event severity: (?:fatal|recoverable)|Bank \\d+: [abef][0-9a-f]{15}\\b)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "The CPU reported an error it could not correct. The line says so: uncorrected, fatal, or a status value with the uncorrected bit set. This can crash the server or damage data in memory.",
+      "recommendation": "Read the lines around it, and /var/log/mcelog if your server keeps one. Run a long memtest, reseat the memory, check cooling and power. If it repeats on the same CPU or memory bank, that part is the suspect.",
+      "exclude_pattern": "AMD Processor family"
+    },
+    {
+      "id": "mce-corrected",
+      "category": "hardware",
+      "name": "Corrected machine check (no action needed)",
+      "pattern": "kernel:.*\\[Hardware Error\\].*(?:\\bcorrected error|no action required|corrected by h/w|event severity: (?:corrected|info)|Bank \\d+: [89cd][0-9a-f]{15}\\b)",
+      "exclude_pattern": "uncorrect",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "",
+      "config_file": "",
+      "description": "The CPU found an error and corrected it, so nothing was lost. An occasional one is normal.",
+      "recommendation": "Nothing to do for a single one. If they come often, run a memtest and check memory seating and cooling."
+    },
+    {
+      "id": "mce-logged",
+      "category": "hardware",
+      "name": "Machine check logged",
+      "pattern": "(?:kernel:.*\\[Hardware Error\\]|Machine check events logged)",
+      "exclude_pattern": "(?:uncorrect|corrected|\\bfatal\\b|context corrupt|event severity|no action required|Bank \\d+: [0-9a-f]{16}\\b|AMD Processor family)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "",
+      "config_file": "",
+      "description": "The kernel logged a machine check, but this line does not say whether it was corrected. Most of these are corrected errors that need no action.",
+      "recommendation": "Look for the lines around it, and check /var/log/mcelog if your server keeps one. Only uncorrected or fatal events point to a real problem; Lookout lists those as critical."
+    },
+    {
+      "id": "mcelog-amd-false-alarm",
+      "category": "hardware",
+      "name": "mcelog AMD processor not supported (benign)",
+      "pattern": "mcelog.*(?:ERROR|error).*AMD Processor family.*does not support",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "",
+      "config_file": "",
+      "description": "Completely harmless. The mcelog tool does not support AMD Zen processors. This appears once at boot and means nothing. Fix Common Problems may falsely flag it as a hardware error.",
+      "recommendation": "Ignore it. This is a false alarm on ALL AMD Zen 1/2/3/4 systems. The 'hardware errors detected' notification from Fix Common Problems is incorrect."
+    },
+    {
+      "id": "edac-memory-error",
+      "category": "hardware",
+      "name": "Corrected memory error (ECC)",
+      "pattern": "EDAC\\b.*(?:\\bCE\\b|\\bcorrect(?:ed|able)\\b|\\berrors?\\b)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "",
+      "config_file": "",
+      "description": "ECC memory found an error and corrected it. An occasional one is fine; a rising rate means the DIMM is wearing out.",
+      "recommendation": "Keep an eye on how often it happens. If the rate rises, replace the DIMM. 'edac-util -s' shows which slot, if you have it.",
+      "exclude_pattern": "(?:\\bUE\\b|uncorrect|\\bfatal\\b)"
+    },
+    {
+      "id": "edac-uncorrected",
+      "category": "hardware",
+      "name": "Uncorrected memory error (ECC)",
+      "pattern": "EDAC\\b.*(?:\\bUE\\b|uncorrect|\\bfatal\\b)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "ECC memory found an error it could not correct. Data in memory was lost.",
+      "recommendation": "Replace the DIMM. 'edac-util -s' shows which slot, if you have it."
+    },
+    {
+      "id": "pcie-aer-correctable",
+      "category": "hardware",
+      "name": "PCIe AER correctable error",
+      "pattern": "(?:pcieport|AER|PCIe Bus Error).*\\bcorrect(?:able|ed)\\b",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "",
+      "config_file": "",
+      "description": "Correctable PCIe errors are automatically handled by hardware with no data loss. Very common with certain NVMe/SSD controllers and slightly unclean card-to-slot connections. They pose no impact on functionality.",
+      "recommendation": "Usually safe to ignore. If they spam the log excessively, reseat the PCIe card or add 'pci=noaer' to boot parameters."
+    },
+    {
+      "id": "pcie-aer-uncorrectable",
+      "category": "hardware",
+      "name": "PCIe AER uncorrectable error",
+      "pattern": "(?:pcieport|AER|PCIe Bus Error).*\\buncorrect(?:able|ed)\\b.*(?:error|fatal|type=)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "PCIe uncorrectable error — data corruption is possible. Card, slot, or power issue.",
+      "recommendation": "Identify the PCIe device. Reseat the card. Try a different slot. Check PSU power. If persistent, the card or slot may be faulty."
+    },
+    {
+      "id": "task-hung",
+      "category": "hardware",
+      "name": "Task hung (blocked I/O)",
+      "pattern": "kernel:.*INFO:.*task.*blocked for more than \\d+ seconds",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "This is the kernel's watchdog notification, NOT the root cause. A process waited too long for I/O. Usually indicates a disk or controller not responding, NFS mount issues, or heavy parity operations concurrent with I/O.",
+      "recommendation": "Identify which disk/device is affected from the call trace. Common causes: slow spin-up, NFS server unreachable, parity check with heavy concurrent I/O. Bad USB enclosures commonly cause this."
+    },
+    {
+      "id": "acpi-bios-error",
+      "category": "hardware",
+      "name": "ACPI BIOS error flooding syslog",
+      "pattern": "kernel:.*ACPI(?: BIOS)? (?:Error|Bug)\\b",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "",
+      "config_file": "",
+      "description": "BIOS ACPI table firmware bugs. Very common on consumer motherboards. These are informational and usually do not affect system operation.",
+      "recommendation": "Update BIOS to latest version. If errors persist, they are cosmetic. Can suppress with 'acpi=off' boot parameter but this may disable power management."
+    },
+    {
+      "id": "temperature-high",
+      "category": "hardware",
+      "name": "High temperature warning",
+      "pattern": "(?:above threshold|critical temperature|overheat(?:ing|ed)\\b)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Disk Settings > Warning temperature",
+      "config_file": "/boot/config/disk.cfg",
+      "description": "A component (CPU, disk, or chipset) is running hot.",
+      "recommendation": "Check case airflow and fan operation. For disks, ensure adequate cooling. Adjust warning threshold in Settings > Disk Settings if too sensitive."
+    },
+    {
+      "id": "usb-disconnect",
+      "category": "hardware",
+      "name": "USB device disconnected",
+      "pattern": "kernel:.*usb.*disconnect",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "",
+      "config_file": "",
+      "description": "If this is the boot flash drive, the system is at risk. If a USB disk, it may be disabled from the array.",
+      "recommendation": "If boot flash: check USB cable and try a different port (avoid USB 3.0 hubs for boot). If data drive: check enclosure power and USB cable."
+    },
+    {
+      "id": "usb-flash-errors",
+      "category": "hardware",
+      "name": "Boot flash drive errors",
+      "pattern": "kernel:.*\\b(?:usb|sd[a-z]+)\\b.*(?:error|reset|abort).*\\b(?:UNRAID|flash|FAT(?:-fs)?)\\b",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Tools > Flash Backup",
+      "config_file": "",
+      "description": "Often the USB port itself, not the flash drive. USB 3.0 ports can be problematic. Some motherboards have poor USB 2.0 controller support. Also check BIOS USB settings (xHCI handoff, legacy USB).",
+      "recommendation": "Try different USB ports (USB 2.0 preferred for boot). Check BIOS USB settings. If the flash drive has reached its write endurance limit, replace with a high-quality USB drive. Backup flash immediately via Tools > Flash Backup."
+    },
+    {
+      "id": "usb-enumerate-fail",
+      "category": "hardware",
+      "name": "USB device enumeration failure",
+      "pattern": "kernel:.*usb.*(?:not accepting address|unable to enumerate|error -71)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "",
+      "config_file": "",
+      "description": "Usually the USB port or controller, not the device. USB 3.0 ports and xHCI controllers are common culprits. Also caused by EMI from nearby components.",
+      "recommendation": "Try USB 2.0 ports. Use a USB 2.0 extension cable to move the device away from EMI sources. Check BIOS USB settings."
+    },
+    {
+      "id": "flash-config-lost",
+      "category": "hardware",
+      "name": "Array config lost / New Config prompt",
+      "pattern": "(?:super\\.dat.*(?:corrupt|missing|not found|failed|error)|ENOFLASH)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Tools > New Config",
+      "config_file": "/boot/config/super.dat",
+      "description": "The super.dat file on USB flash was corrupted. ALL DATA IS STILL ON THE DRIVES — it just needs to be reassigned. This is NOT data loss.",
+      "recommendation": "Restore super.dat from flash backup. Or manually reassign drives (Unraid identifies by serial number). NEVER check 'Parity is Already Valid' unless you are certain the assignments are correct."
+    },
+    {
+      "id": "s3-sleep-hba-issue",
+      "category": "hardware",
+      "name": "Disk issues after S3 sleep wake",
+      "pattern": "kernel:.*(?:PM: .*(?:suspend|resume)|ata\\d+.*resume).*(?:error|failed)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Disk Settings",
+      "config_file": "",
+      "description": "LSI HBA controllers (9211-8i, 9207-8i, etc.) do not properly support S3 sleep. The controller doesn't resume correctly, losing communication with attached drives. The drives are fine.",
+      "recommendation": "Avoid S3 sleep with LSI HBA cards. Use disk spin-down instead. If you must sleep, connect critical drives to motherboard SATA ports."
+    },
+    {
+      "id": "oom-fork-inotify",
+      "category": "system",
+      "name": "Cannot allocate memory (inotify exhaustion)",
+      "pattern": "fork:.*[Cc]annot allocate memory",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "Can be caused by exhausted inotify watches (many containers and plugins watching files), not actual RAM exhaustion.",
+      "recommendation": "Check 'cat /proc/sys/fs/inotify/max_user_watches'. Increase if needed. Identify which containers/plugins are consuming watches."
+    },
+    {
+      "id": "var-log-full",
+      "category": "system",
+      "name": "/var/log filesystem full",
+      "pattern": "(?:No space left|disk full|cannot write).*(?:/var/log|tmpfs)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Syslog Server",
+      "config_file": "",
+      "description": "/var/log is in RAM (tmpfs). Usually a Docker container spamming logs to stdout/stderr which goes to /var/log/docker.log, or a container in a restart loop generating excessive logging.",
+      "recommendation": "Check what is filling /var/log: 'du -sh /var/log/*'. Common culprit: docker.log or VM console logs. Fix the chatty container and configure log rotation."
+    },
+    {
+      "id": "plex-tmpfs-white-screen",
+      "category": "system",
+      "name": "WebGUI white screen / settings don't save",
+      "pattern": "(?:emhttp|php-fpm|nginx).*(?:cannot write|No space|memory.*exhausted|white.?screen)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Docker > Plex container > Transcode path",
+      "config_file": "",
+      "description": "Plex configured to transcode to /tmp (RAM/tmpfs). Transcoding fills /tmp, which fills rootfs, which breaks emhttp/PHP. Can consume 50+ GB of RAM for a single transcode session.",
+      "recommendation": "Configure Plex to transcode to a disk-backed location (e.g., /mnt/cache/tmp/Plex). Never transcode to /tmp on Unraid."
+    },
+    {
+      "id": "emhttp-php-memory-exhausted",
+      "category": "system",
+      "name": "PHP memory exhausted in WebGUI",
+      "pattern": "Fatal error.*[Aa]llowed memory size.*exhausted",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Syslog Server",
+      "config_file": "",
+      "description": "Syslog has grown too large for PHP to parse in the WebGUI log viewer. A runaway process is flooding syslog.",
+      "recommendation": "Identify and stop the syslog spammer. Clear the oversized log. Check for containers or processes generating excessive logging."
+    },
+    {
+      "id": "call-trace",
+      "category": "system",
+      "name": "Kernel call trace",
+      "pattern": "kernel:.*Call Trace:",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "",
+      "config_file": "",
+      "description": "Kernel dumped a call trace. Not always critical. Check surrounding log lines for context.",
+      "recommendation": "Common causes: macvlan bug (see Docker network type setting), driver bugs, hardware issues, out-of-memory. Check if macvlan is in the trace first."
+    },
+    {
+      "id": "segfault",
+      "category": "system",
+      "name": "Process segfault",
+      "pattern": "kernel:.*(?:segfault at|general protection fault ip)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "",
+      "config_file": "",
+      "description": "A process crashed. Could be software bug, bad RAM, or corrupt binary.",
+      "recommendation": "If an Unraid system process, run memtest86. If a plugin/container process, check for updates."
+    },
+    {
+      "id": "kernel-panic",
+      "category": "system",
+      "name": "Kernel panic",
+      "pattern": "kernel:.*[Kk]ernel panic",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "Critical system failure. Often hardware-related.",
+      "recommendation": "Check for RAM errors (memtest86), overheating, and PSU issues."
+    },
+    {
+      "id": "unclean-shutdown",
+      "category": "system",
+      "name": "Unclean shutdown detected",
+      "pattern": "(?:EXT4-fs|XFS|BTRFS).*(?:recovery|replaying journal|recovering journal)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > UPS Settings",
+      "config_file": "/boot/config/ups.cfg",
+      "description": "Filesystem needed journal recovery, indicating power loss or crash.",
+      "recommendation": "If power loss: configure a UPS with automatic shutdown. Parity may need checking."
+    },
+    {
+      "id": "libvirt-no-space",
+      "category": "vm",
+      "name": "Libvirt: no space for logs or disk",
+      "pattern": "(?:libvirt|qemu).*[Nn]o space left on device",
+      "log_sources": [
+        "syslog",
+        "libvirt"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > VM Manager",
+      "config_file": "/boot/config/domain.cfg",
+      "description": "VM operations failed due to lack of disk space.",
+      "recommendation": "Check space on VM storage location (often cache). Clean up VM logs in /var/log/libvirt/qemu/."
+    },
+    {
+      "id": "libvirt-failed-start",
+      "category": "vm",
+      "name": "Libvirt service failed to start",
+      "pattern": "(?:[Ll]ibvirt.*[Ff]ailed to start|libvirtd.*error)",
+      "log_sources": [
+        "syslog",
+        "libvirt"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > VM Manager",
+      "config_file": "/boot/config/domain.cfg",
+      "description": "Common causes: (a) libvirt.img file corrupted (same issue as docker.img), (b) libvirt.img was moved to the array by the mover, (c) appdata share permissions reset.",
+      "recommendation": "Check that the system share uses cache. Delete and recreate libvirt.img if corrupted. Ensure mover is not moving VM storage."
+    },
+    {
+      "id": "vm-disk-missing",
+      "category": "vm",
+      "name": "VM disk or ISO file not found",
+      "pattern": "error : virQEMUFileOpenAs.*Failed to open file.*No such file",
+      "log_sources": [
+        "libvirt"
+      ],
+      "severity": "warning",
+      "setting_path": "VMs",
+      "config_file": "",
+      "description": "A VM points to a disk image or ISO file that is not there. The VM cannot start until that is fixed.",
+      "recommendation": "Edit the VM and correct the path, or remove the VM if you no longer use it. Check that the share holding the file is available."
+    },
+    {
+      "id": "vm-gpu-code43",
+      "category": "vm",
+      "name": "GPU passthrough Code 43",
+      "pattern": "(?:vfio|qemu).*(?:Code\\s*43|failed.*gpu|nvidia.*denied)",
+      "log_sources": [
+        "syslog",
+        "libvirt"
+      ],
+      "severity": "warning",
+      "setting_path": "VMs tab > Edit VM > XML",
+      "config_file": "/etc/libvirt/qemu/",
+      "description": "NVIDIA drivers deliberately refuse to load in VMs by detecting the hypervisor. This is an intentional block by NVIDIA on consumer GPUs, not a hardware defect.",
+      "recommendation": "Edit VM XML: add '<hidden state=\"on\"/>' under <kvm> and '<vendor_id state=\"on\" value=\"none\"/>' under <hyperv>. Install latest NVIDIA drivers."
+    },
+    {
+      "id": "vfio-passthrough-fail",
+      "category": "vm",
+      "name": "VFIO/IOMMU passthrough failure",
+      "pattern": "(?:vfio|iommu).*(?:error|failed|unable|cannot)",
+      "log_sources": [
+        "syslog",
+        "libvirt"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > VM Manager > IOMMU grouping",
+      "config_file": "/boot/config/domain.cfg",
+      "description": "Device passthrough failed. All devices in the same IOMMU group must be passed through together.",
+      "recommendation": "Check IOMMU groups. Verify BIOS has IOMMU/VT-d enabled. Try adding 'pcie_acs_override=downstream' to boot parameters."
+    },
+    {
+      "id": "mover-permission-denied",
+      "category": "mover",
+      "name": "Mover: permission denied",
+      "pattern": "mover.*(?:[Pp]ermission denied|[Oo]peration not permitted)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Shares > [Share] > Use Cache",
+      "config_file": "/boot/config/shares/",
+      "description": "Docker containers holding files open or incorrect ownership.",
+      "recommendation": "Stop containers that use the affected share, then run mover. Check file ownership — Docker can create files as root."
+    },
+    {
+      "id": "mover-rsync-vanished",
+      "category": "mover",
+      "name": "Mover: rsync file has vanished",
+      "pattern": "(?:mover|rsync).*file has vanished",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Shares > [Share] > Use Cache",
+      "config_file": "/boot/config/shares/",
+      "description": "Docker containers or other processes are actively writing/deleting files while mover runs. The file existed when rsync enumerated it but was gone when rsync tried to copy. This is NOT filesystem corruption.",
+      "recommendation": "Schedule mover during low-activity periods. Stop Docker before running mover for critical moves. Use the Mover Tuning plugin."
+    },
+    {
+      "id": "mover-stuck",
+      "category": "mover",
+      "name": "Mover appears stuck or does nothing",
+      "pattern": "\\bmover\\b.*\\b(?:timeout|stalled|unable to move)\\b",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Shares > [Share] > Use Cache",
+      "config_file": "/boot/config/shares/",
+      "description": "Docker and VMs are holding file locks on the cache drive, preventing the mover from moving files. Mover skips locked files silently.",
+      "recommendation": "Stop Docker and VM Manager, then run mover manually (Main > Array Operations > Move). Set proper minimum free space values (never 0)."
+    },
+    {
+      "id": "slow-array-writes",
+      "category": "performance",
+      "name": "Slow array write speed",
+      "pattern": "(?:write.*speed|transfer rate).*(?:slow|[0-9]+\\s*[KM]B/s)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Settings > Disk Settings > Tunable (md_write_method)",
+      "config_file": "/boot/config/disk.cfg",
+      "description": "Unraid's default write mode (read-modify-write) is inherently slow — it only spins up target + parity. 'Turbo Write' (reconstruct write) spins up all drives for much faster writes.",
+      "recommendation": "Enable Turbo Write in Settings > Disk Settings > Tunable (md_write_method). Or install CA Auto Turbo Write Mode plugin."
+    },
+    {
+      "id": "slow-parity-check",
+      "category": "performance",
+      "name": "Parity check extremely slow",
+      "pattern": "md:.*(?:check|sync).*speed.*(?:\\d+K|\\.\\d+M)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Settings > Disk Settings",
+      "config_file": "/boot/config/disk.cfg",
+      "description": "Often caused by Docker containers performing heavy I/O during parity check (Plex scanning, torrent clients). Can also be HBA card's PCIe ASPM throttling link speed.",
+      "recommendation": "Schedule parity checks during low-usage. Use Parity Check Tuning plugin. Disable ASPM with 'pcie_aspm=off' boot parameter. Check for I/O-heavy containers."
+    },
+    {
+      "id": "ntp-not-synced",
+      "category": "network",
+      "name": "NTP time not synchronized",
+      "pattern": "(?:ntpd|chronyd|systemd-timesyncd).*(?:no server|unreachable|not synchronized|timeout)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Settings > Date and Time > NTP server",
+      "config_file": "/boot/config/ident.cfg",
+      "description": "Time sync failed. Certificate validation and scheduled tasks may behave unexpectedly.",
+      "recommendation": "Check NTP server settings. Verify firewall allows UDP port 123."
+    },
+    {
+      "id": "stp-topology-change",
+      "category": "network",
+      "name": "STP topology change",
+      "pattern": "kernel:.*(?:br|bridge).*topology change",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Settings > Network Settings",
+      "config_file": "/boot/config/network.cfg",
+      "description": "Spanning Tree detected a topology change. Momentary traffic disruption.",
+      "recommendation": "If frequent, check for network loops or flapping links. Enable RSTP on managed switches."
+    },
+    {
+      "id": "wireguard-handshake-fail",
+      "category": "network",
+      "name": "WireGuard handshake failed",
+      "pattern": "wireguard.*(?:handshake.*(?:timeout|fail|did not complete)|[Ii]nvalid|[Nn]o (?:route|response))",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > VPN Manager",
+      "config_file": "/boot/config/wireguard/",
+      "description": "WireGuard tunnel handshake failed.",
+      "recommendation": "Check endpoint address and port. Verify firewall allows UDP on the WireGuard port. Confirm keys match on both sides."
+    },
+    {
+      "id": "login-failure",
+      "category": "security",
+      "name": "Authentication failure",
+      "pattern": "(?:\\b(?:sshd(?:-session)?|login|sudo|su)\\b(?:\\[\\d+\\])?:.*(?:Failed password|Failed keyboard-interactive|Invalid user|authentication failure|FAILED LOGIN)|webGUI: Unsuccessful login)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Management Access > SSH",
+      "config_file": "/boot/config/ssh/",
+      "description": "Failed login attempt. Could be brute force or misconfigured credentials.",
+      "recommendation": "Check the source IP. If external, ensure SSH is not exposed to the internet. Use key-based auth."
+    },
+    {
+      "id": "ups-on-battery",
+      "category": "power",
+      "name": "UPS on battery power",
+      "pattern": "\\b(?:apcupsd|upsmon|upsd|nut)\\b.*(?:on battery|power failure|line fail)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > UPS Settings",
+      "config_file": "/boot/config/ups.cfg",
+      "description": "UPS switched to battery — mains power lost.",
+      "recommendation": "Verify UPS settings trigger a clean shutdown before battery runs out."
+    },
+    {
+      "id": "ups-low-battery",
+      "category": "power",
+      "name": "UPS battery critical",
+      "pattern": "\\b(?:apcupsd|upsmon|upsd|nut)\\b.*(?:low battery|shutdown imminent|battery.*critical)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > UPS Settings",
+      "config_file": "/boot/config/ups.cfg",
+      "description": "UPS battery is critically low.",
+      "recommendation": "Verify auto-shutdown is configured. If the system did NOT shut down, fix the UPS plugin configuration immediately."
+    },
+    {
+      "id": "nginx-error",
+      "category": "system",
+      "name": "Unraid web server error",
+      "pattern": "nginx.*\\[(?:error|emerg|crit|alert)\\]",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Management Access",
+      "config_file": "/boot/config/ident.cfg",
+      "description": "The Unraid web server (nginx) logged an error. May affect WebGUI access.",
+      "recommendation": "Check if WebGUI is accessible. Common causes: SSL cert issues, port conflicts.",
+      "exclude_pattern": "open socket|: aborting$|auth request unexpected status: 504|upstream timed out.*(?:emhttpd|update\\.htm)"
+    },
+    {
+      "id": "plugin-error",
+      "category": "system",
+      "name": "Plugin installation/run error",
+      "pattern": "plugin:.*(?:error|failed|unable|ERROR)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Plugins tab",
+      "config_file": "/boot/config/plugins/",
+      "description": "A plugin reported an error.",
+      "recommendation": "Check the specific plugin. Try reinstalling. Check the plugin support thread on Unraid forums."
+    },
+    {
+      "id": "zfs-checksum-error",
+      "category": "filesystem",
+      "name": "ZFS checksum error",
+      "pattern": "ZFS.*(?:checksum error|cksum|CKSUM)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "ZFS detected a data integrity error.",
+      "recommendation": "Run 'zpool scrub'. Check SMART data. Test RAM with memtest86."
+    },
+    {
+      "id": "zfs-pool-degraded",
+      "category": "filesystem",
+      "name": "ZFS pool degraded",
+      "pattern": "ZFS.*(?:DEGRADED|FAULTED|UNAVAIL)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "",
+      "config_file": "",
+      "description": "A ZFS pool has lost redundancy or a device.",
+      "recommendation": "Check 'zpool status'. Replace the failed drive and resilver."
+    },
+    {
+      "id": "smb-max-connections",
+      "category": "shares",
+      "name": "SMB max connections reached",
+      "pattern": "smbd.*(?:max.*connections|too many open files|connection limit)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > SMB Settings",
+      "config_file": "/boot/config/smb-extra.conf",
+      "description": "Too many SMB connections.",
+      "recommendation": "Check for misbehaving clients holding stale connections. Increase max connections in smb-extra.conf if needed."
+    },
+    {
+      "id": "btrfs-device-error-counts",
+      "category": "filesystem",
+      "name": "BTRFS device error counters non-zero",
+      "pattern": "BTRFS.*bdev.*errs:.*(?:wr [1-9]|rd [1-9]|flush [1-9]|corrupt [1-9]|gen [1-9])",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Main > Cache",
+      "config_file": "",
+      "description": "BTRFS tracks per-device error counters. 'corrupt' > 0 means BTRFS detected data that didn't match its checksum — could be bad RAM, failing drive, or controller issue. 'rd'/'wr' errors indicate I/O problems with the underlying block device. These counters persist across mounts and accumulate. A btrfs scrub may report zero errors even when these counters are high — the scrub only checks currently allocated data, while counters include historical errors.",
+      "recommendation": "Run 'btrfs device stats /mnt/cache' to see current counts. For corrupt > 0: run memtest86 first to rule out RAM, then check SMART. For rd/wr > 0: check cables and drive health. Reset counters with 'btrfs device stats -z /mnt/cache' after investigating, then monitor for new errors."
+    },
+    {
+      "id": "split-lock-detection",
+      "category": "hardware",
+      "name": "Split lock detection kernel message",
+      "pattern": "took a (?:split_lock|bus_lock) trap",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "",
+      "config_file": "",
+      "description": "This is NOT a hardware error. Intel CPUs with split lock detection warn when a memory access crosses a cache line boundary. Common with certain VMs, Wine/Proton, and older software. The message floods syslog but causes no harm. Can cause slight performance overhead due to kernel trapping each split lock.",
+      "recommendation": "Safe to ignore. If log spam is excessive, add 'split_lock_detect=off' to Unraid boot parameters (Main > Flash > Syslinux Configuration > append). Some VM guests trigger this frequently — it does not indicate host hardware problems."
+    },
+    {
+      "id": "mcelog-dimm-prefill",
+      "category": "hardware",
+      "name": "mcelog DIMM database prefill failure (benign)",
+      "pattern": "mcelog.*failed to prefill DIMM database",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "",
+      "config_file": "",
+      "description": "Completely harmless. mcelog couldn't read DIMM layout from the motherboard's DMI/SMBIOS tables. This is common on consumer motherboards with incomplete DMI data. mcelog still monitors for actual hardware errors — it just can't map errors to specific DIMM slots.",
+      "recommendation": "Ignore. This is cosmetic. Update BIOS if you want cleaner logs, but it makes no functional difference. Fix Common Problems may flag this alongside other mcelog messages — the DIMM prefill failure itself is not a hardware error."
+    },
+    {
+      "id": "mover-rsync-xattr-btrfs",
+      "category": "mover",
+      "name": "Mover: BTRFS compression xattr lost during move",
+      "pattern": "rsync.*rsync_xal_set.*lsetxattr.*btrfs\\.compression.*Operation not supported",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Shares > [Share] > Use Cache",
+      "config_file": "/boot/config/shares/",
+      "description": "Files on BTRFS cache with compression enabled have a 'btrfs.compression' extended attribute. When the mover moves these files to XFS array drives, rsync cannot set this BTRFS-specific xattr on XFS. The file data transfers perfectly — only the compression metadata is lost. This is expected behavior, not data loss.",
+      "recommendation": "Safe to ignore. The files are intact on the array, just without BTRFS compression metadata (which XFS doesn't support anyway). If the noise bothers you, this is normal when using BTRFS cache with compression and XFS array drives."
+    },
+    {
+      "id": "mover-rsync-code23",
+      "category": "mover",
+      "name": "Mover: rsync partial transfer (code 23)",
+      "pattern": "(?:mover|move).*rsync error.*code 23",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Shares > [Share] > Use Cache",
+      "config_file": "/boot/config/shares/",
+      "description": "rsync code 23 means 'some files/attrs were not transferred.' On Unraid, this is almost always caused by BTRFS compression xattrs that can't be set on XFS array drives (harmless), or by files held open by Docker containers during the move. Check the preceding log lines for the specific rsync error.",
+      "recommendation": "Check syslog lines immediately before this error. If they show 'btrfs.compression' xattr failures, this is benign. If they show 'Permission denied' or 'file has vanished', stop the relevant Docker container and rerun the mover."
+    },
+    {
+      "id": "nginx-upstream-timeout",
+      "category": "system",
+      "name": "WebGUI upstream timeout (emhttpd overloaded)",
+      "pattern": "nginx.*upstream timed out.*(?:emhttpd|update\\.htm|/var/run/emhttpd)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "critical",
+      "setting_path": "Settings > Management Access",
+      "config_file": "",
+      "description": "nginx cannot reach emhttpd (Unraid's core management daemon) — the WebGUI becomes unresponsive. emhttpd is single-threaded and can block during heavy operations: starting/stopping the array, parity checks with concurrent I/O, many plugins polling simultaneously, or disk spin-up waits. This is a known issue across multiple Unraid versions.",
+      "recommendation": "Wait for the current operation to complete (array start, parity check). If persistent: reduce active plugins, check for plugins that poll emhttpd frequently. SSH in and check 'top' — if emhttpd is consuming 100% CPU, a reboot may be required. Consider reducing concurrent WebGUI sessions."
+    },
+    {
+      "id": "nginx-auth-request-504",
+      "category": "system",
+      "name": "WebGUI auth timeout (php-fpm overloaded)",
+      "pattern": "nginx.*auth request unexpected status: 504",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Management Access",
+      "config_file": "",
+      "description": "nginx's auth_request subrequest to php-fpm timed out (504 Gateway Timeout). All WebGUI requests pass through php-fpm for authentication. When php-fpm is overloaded (all workers busy), auth requests queue up and timeout, making the entire WebGUI inaccessible even though emhttpd itself may be fine.",
+      "recommendation": "Check if php-fpm max_children was also reached (look for that warning in syslog). Reduce browser tabs open to the WebGUI. Identify plugins that make heavy PHP calls. The issue usually resolves when the load drops."
+    },
+    {
+      "id": "php-fpm-max-children",
+      "category": "system",
+      "name": "PHP-FPM worker pool exhausted",
+      "pattern": "php-fpm.*server reached max_children setting",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Management Access",
+      "config_file": "",
+      "description": "All 50 PHP worker processes are busy. Common causes: many browser tabs to WebGUI, plugins with heavy AJAX polling (Unassigned Devices with many mounts, Docker tab auto-refresh), or a misbehaving plugin stuck in a loop. The WebGUI becomes slow or unresponsive until workers free up.",
+      "recommendation": "Close extra WebGUI browser tabs. Check for plugins that auto-refresh frequently. If persistent across reboots, disable plugins one by one to find the culprit. The limit of 50 is hardcoded in Unraid and cannot be easily increased."
+    },
+    {
+      "id": "file-integrity-hash-mismatch",
+      "category": "disk",
+      "name": "File integrity hash mismatch",
+      "pattern": "(?:BLAKE3|MD5|SHA256).*hash.*mismatch.*(?:modified|changed|corrupted)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Plugins > File Integrity",
+      "config_file": "/boot/config/plugins/dynamix.file.integrity/",
+      "description": "A file's hash changed since the last check. This can mean: (a) the file was legitimately updated by an application, (b) silent bit-rot/corruption, or (c) the mover relocated it. Check if the file is in a location where applications write (databases, caches, logs) — those are expected. Files that should never change (media, archives) changing hash is more concerning.",
+      "recommendation": "Check if the file is in an active application's data directory (expected changes). For media/archive files: verify the file is still usable. Run memtest86 if you see many unexpected hash changes across different drives. Exclude application data directories from integrity checks to reduce noise."
+    },
+    {
+      "id": "fcp-hack-attempt",
+      "category": "security",
+      "name": "Fix Common Problems: Possible Hack Attempt",
+      "pattern": "Fix Common Problems.*(?:[Pp]ossible [Hh]ack [Aa]ttempt|Error.*Hack)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Settings > Management Access > SSH",
+      "config_file": "/boot/config/ssh/",
+      "description": "Fix Common Problems detected failed login attempts. On a LAN-only server this is usually a misconfigured client (saved wrong password, SSH key mismatch), not an actual attack. On internet-exposed servers, this IS a real concern. The plugin checks /var/log/syslog for authentication failures.",
+      "recommendation": "Check the source IP in syslog. If it's a known LAN device, fix its credentials. If it's an unknown IP, ensure SSH and WebGUI are not port-forwarded to the internet. Use SSH key-based auth only. Consider Fail2ban or changing SSH port.",
+      "exclude_pattern": "\\*\\* Ignored"
+    },
+    {
+      "id": "fcp-unknown-plugin",
+      "category": "system",
+      "name": "Fix Common Problems: Unknown plugin warning",
+      "pattern": "Fix Common Problems.*(?:not known to Community Applications|possibly incompatible)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Plugins tab",
+      "config_file": "/boot/config/plugins/",
+      "description": "The plugin is not in the Community Applications catalog. This is expected for custom/private plugins and does not mean the plugin is broken or dangerous — it just wasn't submitted to the CA repository. All manually installed .plg files trigger this warning.",
+      "recommendation": "If you installed this plugin intentionally, this is safe to ignore. Click 'Ignore' in Fix Common Problems to suppress it. Only concerning if you don't recognize the plugin name.",
+      "exclude_pattern": "\\*\\* Ignored"
+    },
+    {
+      "id": "smb-no-path-service",
+      "category": "shares",
+      "name": "SMB share path unavailable",
+      "pattern": "smbd.*WARNING.*No path in service.*making it unavailable",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Shares > [Share] > SMB Security",
+      "config_file": "/boot/config/smb-extra.conf",
+      "description": "The underlying path for an SMB share doesn't exist. Normal during boot before the array starts (shares aren't mounted yet). If persistent after array start, the share may have been deleted or the backing disk is missing/unmounted.",
+      "recommendation": "If seen during boot only, ignore. If persistent: check that the share exists in Shares tab and that its backing disks are mounted. For appdata share: verify Docker is enabled and the cache pool is online."
+    },
+    {
+      "id": "ud-remote-mount-failed",
+      "category": "shares",
+      "name": "Remote share failed to mount",
+      "pattern": "unassigned\\.devices:.*(?:Remote Share .*failed to mount|SMB mount failed)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "warning",
+      "setting_path": "Main > Unassigned Devices",
+      "config_file": "",
+      "description": "Unassigned Devices could not mount a remote share. Anything that writes to that path, such as a backup, stops working or writes to the wrong place.",
+      "recommendation": "Check that the other server is up and reachable by that name. At boot, the network or the other server may not be ready yet: mount it again by hand or delay the mount."
+    },
+    {
+      "id": "rpc-statd-nfs-failure",
+      "category": "network",
+      "name": "NFS lock manager state failure",
+      "pattern": "rpc\\.statd.*Failed to read.*state",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Shares > [Share] > NFS Settings",
+      "config_file": "",
+      "description": "NFS lock manager (rpc.statd) couldn't read its state file. Common after unclean shutdown — the state file in /var/lib/nfs/ is in RAM and lost on reboot. Usually resolves itself. If NFS shares fail to mount on clients, this may be the cause.",
+      "recommendation": "Usually resolves on its own after boot. If NFS clients can't connect, restart NFS services. Persistent issues may require clearing /var/lib/nfs/state manually."
+    },
+    {
+      "id": "ntp-clock-unsynchronized",
+      "category": "network",
+      "name": "System clock not synchronized",
+      "pattern": "(?:ntpd|kernel).*(?:TIME_ERROR|Clock Unsynchronized)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Settings > Date and Time > NTP server",
+      "config_file": "/boot/config/ident.cfg",
+      "description": "NTP hasn't synced the clock yet. Normal during the first few minutes after boot. If persistent, NTP server is unreachable (firewall blocking UDP 123, DNS not resolving pool.ntp.org, or no internet). Unsynced time can cause SSL certificate validation failures and incorrect log timestamps.",
+      "recommendation": "Wait a few minutes after boot. If persistent: check DNS resolution of the NTP server, verify firewall allows UDP 123 outbound, and try a different NTP server in Settings > Date and Time."
+    },
+    {
+      "id": "pm2-unraid-api-warning",
+      "category": "system",
+      "name": "PM2/unraid-api restart or warning",
+      "pattern": "\\[PM2\\].*(?:\\bERROR\\b|errored|restart)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Settings > My Servers",
+      "config_file": "",
+      "description": "The unraid-api service (Unraid Connect/My Servers) is restarting or encountered an issue. PM2 is the process manager that keeps it running. Known to have memory leaks in some versions that consume 2+ GB over time.",
+      "recommendation": "Usually self-resolving as PM2 restarts the service. If unraid-api consumes excessive memory ('top' shows high PM2 usage), restart it manually or disable My Servers if not needed."
+    },
+    {
+      "id": "parity-check-tuning",
+      "category": "array",
+      "name": "Parity Check Tuning plugin operation",
+      "pattern": "Parity Check Tuning:.*(?:pause|resume|schedul|heat|temperatur)",
+      "log_sources": [
+        "syslog"
+      ],
+      "severity": "info",
+      "setting_path": "Settings > Scheduler > Parity Check Tuning",
+      "config_file": "/boot/config/plugins/parity.check.tuning.cfg",
+      "description": "The Parity Check Tuning plugin is managing parity operations — pausing for high temps, resuming on schedule, or following its configured increment/pause cycle. This is the plugin working as designed.",
+      "recommendation": "No action needed. Review plugin settings if the pause/resume pattern doesn't match your expectations. Check temperature thresholds if heat-based pauses are frequent.",
+      "exclude_pattern": "#012"
+    }
+  ]
+}

@@ -1,0 +1,203 @@
+# <rule id> TAB <source> TAB <log line>. Lines in the form the rule's own log writes them. All are made up for these tests.
+# ! as the id: no rule may match. -<rule id>: that rule may not match; other rules may.
+disk-emulated-slow	syslog	Nov  5 10:01:02 srv kernel: md: disk2 contents emulated
+btrfs-dev-missing	syslog	Nov  5 10:01:02 srv kernel: BTRFS warning (device nvme0n1p1): devid 2 uuid 1234 is missing
+xfs-corruption	syslog	Nov  5 10:01:02 srv kernel: XFS (md1p1): Corruption of in-memory data detected. Shutting down filesystem
+docker-layer-not-exist	syslog	Nov  5 10:01:02 srv dockerd[99]: failed to register layer: layer does not exist
+realtek-tcp-failure	syslog	Nov  5 10:01:02 srv kernel: r8169 0000:03:00.0 eth0: rtl_rxtx_empty_cond == 0 (loop: 42) tx timeout
+usb-disconnect	syslog	Nov  5 10:01:02 srv kernel: usb 1-2: USB disconnect, device number 3
+mcelog-dimm-prefill	syslog	Nov  5 10:01:02 srv mcelog: failed to prefill DIMM database from DMI data
+fcp-hack-attempt	syslog	Nov  5 10:01:02 srv root: Fix Common Problems: Error: Possible Hack Attempt on Nov 05
+!	syslog	Nov  5 10:01:02 srv emhttpd: spinning down /dev/sdb
+!	syslog	Nov  5 10:01:02 srv kernel: mdcmd (36): spindown 2
+!	syslog	Nov  5 10:01:02 srv sshd[1234]: Accepted publickey for root from 10.0.0.1 port 22
+!	syslog	Nov  5 10:01:02 srv rc.docker: container started
+# seen on a healthy server, at every boot or shutdown
+!	syslog	Nov  4 10:33:20 srv kernel: thermal_sys: Registered thermal governor 'step_wise'
+!	syslog	Nov  4 10:33:20 srv kernel: PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+!	syslog	Nov  4 10:33:20 srv kernel: ata1: SATA link down (SStatus 0 SControl 300)
+!	syslog	Nov  4 10:33:36 srv rc.mcelog: Starting MCElog daemon...
+!	syslog	Nov  4 10:33:37 srv rc.mcelog: MCElog daemon...  Started.
+!	syslog	Nov  4 10:33:37 srv mcelog: Kernel does not support page offline interface
+!	syslog	Nov  4 10:33:39 srv emhttpd: shcmd (8): /sbin/modprobe md-mod super=/boot/config/super.dat
+!	syslog	Nov  4 10:33:51 srv root: [PM2][WARN] Applications unraid-api not running, starting...
+!	syslog	Nov  4 10:33:51 srv root: [PM2][WARN] App unraid-api has option 'wait_ready' set, waiting for app to be ready...
+!	syslog	Nov  4 10:40:00 srv nginx: 2026/11/04 10:40:00 [alert] 1234#1234: *5 open socket #12 left in connection 3
+!	syslog	Nov  4 10:40:00 srv nginx: 2026/11/04 10:40:00 [alert] 1234#1234: aborting
+!	syslog	Nov  4 10:40:00 srv kernel: EDAC MC0: Giving out device to module i10nm_edac controller Integrated Memory Controller
+!	syslog	Nov  4 10:40:00 srv root: backups finished, 12 groups in a minute, critical section left
+!	syslog	Nov  4 10:40:00 srv kernel: IPv6: ADDRCONF(NETDEV_UP): eth0: link is not ready
+!	syslog	Nov  4 10:40:00 srv kernel: ACPI: PM: (supports S0 S3 S4 S5) wakeup disabled
+# a user name in a log line must not pass for a hardware error
+!	syslog	Nov  4 10:40:00 srv sshd[1]: Connection closed by authenticating user mce 10.0.0.1
+# the same rules on the real thing
+mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: CPU 0: Machine Check: 0 Bank 4: b200000000070f0f
+flash-config-lost	syslog	Nov  4 10:40:00 srv emhttpd: error reading /boot/config/super.dat: file corrupt
+shucked-drive-no-power	syslog	Nov  4 10:40:00 srv kernel: ata3: softreset failed (device not ready)
+ata-link-slow	syslog	Nov  4 10:40:00 srv kernel: ata3: SATA link down (SStatus 1 SControl 300)
+ata-link-slow	syslog	Nov  4 10:40:00 srv kernel: ata3: hard resetting link
+acpi-bios-error	syslog	Nov  4 10:40:00 srv kernel: ACPI BIOS Error (bug): Could not resolve symbol [\_SB.PCI0], AE_NOT_FOUND
+pm2-unraid-api-warning	syslog	Nov  4 10:40:00 srv root: [PM2][ERROR] Process unraid-api errored
+temperature-high	syslog	Nov  4 10:40:00 srv kernel: mce: CPU0: Package temperature above threshold, cpu clock throttled
+nginx-error	syslog	Nov  4 10:40:00 srv nginx: 2026/11/04 10:40:00 [crit] 1234#1234: *5 connect() failed
+edac-memory-error	syslog	Nov  4 10:40:00 srv kernel: EDAC MC0: 1 CE memory read error on CPU_SrcID#0_Channel#1_DIMM#0
+login-failure	syslog	Nov  4 10:40:00 srv sshd[12]: Failed password for root from 10.0.0.1 port 22 ssh2
+login-failure	syslog	Nov  4 10:40:00 srv webGUI: Unsuccessful login user root from 10.0.0.1
+ups-on-battery	syslog	Nov  4 10:40:00 srv apcupsd[9]: Power failure.
+ups-low-battery	syslog	Nov  4 10:40:00 srv upsmon[9]: UPS ups@localhost on battery, low battery
+btrfs-readonly	syslog	Nov  4 10:40:00 srv kernel: BTRFS info (device sdb1): forced readonly
+nic-link-down	syslog	Nov  4 10:40:00 srv kernel: e1000e: eth0 NIC Link is Down
+bond-link-down	syslog	Nov  4 10:40:00 srv kernel: bond0: link status definitely down for interface eth0
+# machine checks: the severity follows what the line says
+-mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Machine check events logged
+mce-logged	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Machine check events logged
+mce-logged	syslog	Nov  4 10:40:00 srv kernel: Hardware Error: Machine check events logged
+-mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: Hardware Error: Machine check events logged
+mce-corrected	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Corrected error, no action required.
+-mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Corrected error, no action required.
+-mce-logged	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Corrected error, no action required.
+mce-corrected	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: CPU 3: Machine Check: 0 Bank 7: 8c00004000010090
+-mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: CPU 3: Machine Check: 0 Bank 7: 8c00004000010090
+mce-corrected	syslog	Nov  4 10:40:00 srv kernel: {1}[Hardware Error]: event severity: corrected
+mce-corrected	syslog	Nov  4 10:40:00 srv kernel: {1}[Hardware Error]: It has been corrected by h/w and requires no further action
+mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Uncorrected, software restartable error.
+-mce-corrected	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Uncorrected, software restartable error.
+-mce-logged	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Uncorrected, software restartable error.
+mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: mce: [Hardware Error]: Machine check: Processor context corrupt
+mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: {1}[Hardware Error]: event severity: fatal
+mce-hardware-error	syslog	Nov  4 10:40:00 srv kernel: mce: Uncorrected hardware memory error in user-access at 2a4e0f000
+edac-uncorrected	syslog	Nov  4 10:40:00 srv kernel: EDAC MC0: 1 UE memory read error on CPU_SrcID#0_Channel#1_DIMM#0
+-edac-memory-error	syslog	Nov  4 10:40:00 srv kernel: EDAC MC0: 1 UE memory read error on CPU_SrcID#0_Channel#1_DIMM#0
+-edac-uncorrected	syslog	Nov  4 10:40:00 srv kernel: EDAC MC0: 1 CE memory read error on CPU_SrcID#0_Channel#1_DIMM#0
+# found by a sweep of a working server's logs: must not fire
+!	syslog	Nov  4 10:41:00 srv rc.local: plugin: mover.tuning.plg installed
+!	syslog	Nov  4 10:41:00 srv plugin-manager: cache-mover.plg installed
+!	syslog	Nov  4 10:41:00 srv kernel: x86/split lock detection: #AC: crashing the kernel on kernel split_locks and warning on user-space split_locks
+!	syslog	Nov  4 10:41:00 srv root: Fix Common Problems: Warning: The plugin demo.plg is not known to Community Applications and is possibly incompatible with your server ** Ignored
+!	syslog	Nov  4 10:41:00 srv Parity Check Tuning: Array#012(#012    [parityTuningScheduled] => 0#012)
+-realtek-tcp-failure	syslog	Nov  4 10:41:00 srv kernel: r8169 0000:06:00.0: PCIe Bus Error: severity=Correctable, type=Physical Layer, (Transmitter ID)
+-realtek-system-freeze	syslog	Nov  4 10:41:00 srv kernel: r8169 0000:06:00.0:    [12] Timeout
+-realtek-tcp-failure	syslog	Nov  4 10:41:00 srv kernel: r8169 0000:06:00.0:   device [10ec:8125] error status/mask=00001101/0000e000
+-realtek-tcp-failure	syslog	Nov  4 10:41:00 srv kernel: r8125 0000:06:00.0 eth0: Transmit timeout reset Device!
+-pcie-aer-correctable	syslog	Nov  4 10:41:00 srv kernel: pcieport 0000:00:1c.4: AER: Multiple Uncorrectable (Fatal) error message received from 0000:00:1c.4
+-docker-oom-killed	syslog	Nov  4 10:41:00 srv root: Fix Common Problems: Error: Out Of Memory errors detected on your server
+-nginx-error	syslog	Nov  4 10:41:00 srv nginx: 2026/11/04 10:41:00 [error] 12#12: *9 auth request unexpected status: 504 while sending to client
+-vm-gpu-code43	libvirt	2026-11-04 10:41:00.000+0000: 12: error : qemuProcessReportLogError:2100 : internal error: qemu unexpectedly closed the monitor
+# the same rules on the real thing
+mover-stuck	syslog	Nov  4 10:41:00 srv root: mover: unable to move /mnt/cache/share/file
+mover-stuck	syslog	Nov  4 10:41:00 srv move: mover stalled after timeout
+split-lock-detection	syslog	Nov  4 10:41:00 srv kernel: x86/split lock detection: #AC: wine/1234 took a split_lock trap at address: 0x7f001
+fcp-unknown-plugin	syslog	Nov  4 10:41:00 srv root: Fix Common Problems: Warning: The plugin demo.plg is not known to Community Applications and is possibly incompatible with your server
+parity-check-tuning	syslog	Nov  4 10:41:00 srv Parity Check Tuning: Scheduled Non-Correcting Parity-Check canceled (0 errors)
+realtek-system-freeze	syslog	Nov  4 10:41:00 srv kernel: r8169 0000:06:00.0 eth0: NETDEV WATCHDOG: CPU: 3: transmit queue 0 timed out 5100 ms
+nic-tx-timeout	syslog	Nov  4 10:41:00 srv kernel: r8125 0000:06:00.0 eth0: NETDEV WATCHDOG: CPU: 3: transmit queue 1 timed out 6100 ms
+nic-tx-timeout	syslog	Nov  4 10:41:00 srv kernel: r8125 0000:06:00.0 eth0: Transmit timeout reset Device!
+nic-tx-timeout	syslog	Nov  4 10:41:00 srv kernel: igc 0000:05:00.0 eth1: NETDEV WATCHDOG: CPU: 3: transmit queue 0 timed out 5100 ms
+pcie-aer-correctable	syslog	Nov  4 10:41:00 srv kernel: pcieport 0000:00:1c.4: AER: Multiple Correctable error message received from 0000:00:1c.4
+pcie-aer-correctable	syslog	Nov  4 10:41:00 srv kernel: r8125 0000:06:00.0: PCIe Bus Error: severity=Correctable, type=Physical Layer, (Transmitter ID)
+pcie-aer-uncorrectable	syslog	Nov  4 10:41:00 srv kernel: pcieport 0000:00:1c.4: AER: Multiple Uncorrectable (Fatal) error message received from 0000:00:1c.4
+pcie-aer-uncorrectable	syslog	Nov  4 10:41:00 srv kernel: pcieport 0000:00:1c.4: PCIe Bus Error: severity=Uncorrectable (Fatal), type=Data Link Layer, (Receiver ID)
+docker-oom-killed	syslog	Nov  4 10:41:00 srv kernel: Memory cgroup out of memory: Killed process 123 (demo) total-vm:1000kB, anon-rss:900kB
+docker-oom-killed	syslog	Nov  4 10:41:00 srv kernel: kworker/u8:2 invoked oom-killer: gfp_mask=0xc00(GFP_NOIO), order=0, oom_score_adj=0
+nginx-error	syslog	Nov  4 10:41:00 srv nginx: 2026/11/04 10:41:00 [alert] 12#12: worker process 34 exited on signal 6
+nginx-auth-request-504	syslog	Nov  4 10:41:00 srv nginx: 2026/11/04 10:41:00 [error] 12#12: *9 auth request unexpected status: 504 while sending to client
+nginx-upstream-timeout	syslog	Nov  4 10:41:00 srv nginx: 2026/11/04 10:41:00 [error] 12#12: *9 upstream timed out (110) while reading from upstream: "http://unix:/var/run/emhttpd.socket:/update.htm"
+login-failure	syslog	Nov  4 10:41:00 srv sshd-session[12]: Failed password for invalid user demo from 10.0.0.1 port 22 ssh2
+login-failure	syslog	Nov  4 10:41:00 srv sshd-session[12]: Failed keyboard-interactive/pam for root from 10.0.0.1 port 22 ssh2
+login-failure	syslog	Nov  4 10:41:00 srv login[12]: FAILED LOGIN 1 FROM tty1 FOR root, Authentication failure
+segfault	syslog	Nov  4 10:41:00 srv kernel: worker[12]: segfault at 8 ip 000014f3592e6430 sp 000014f348fff0d8 error 4 in libdemo.so
+segfault	syslog	Nov  4 10:41:00 srv kernel: traps: demo[12] general protection fault ip:14f3 sp:7ffd error:0 in libdemo.so
+btrfs-io-failure	syslog	Nov  4 10:41:00 srv kernel: BTRFS: error (device sdb1 state EA) in cleanup_transaction:1999: errno=-5 IO failure
+btrfs-io-failure	syslog	Nov  4 10:41:00 srv kernel: BTRFS warning (device nvme1n1p1): lost super block write due to IO error on /dev/nvme2n1p1 (-5)
+btrfs-io-failure	syslog	Nov  4 10:41:00 srv kernel: BTRFS error (device nvme1n1p1): error writing primary super block to device 2
+btrfs-device-error-counts	syslog	Nov  4 10:41:00 srv kernel: BTRFS error (device sdb1): bdev /dev/sdb1 errs: wr 0, rd 2, flush 0, corrupt 0, gen 0
+!	syslog	Nov  4 10:41:00 srv kernel: BTRFS info (device sdb1): bdev /dev/sdb1 errs: wr 0, rd 0, flush 0, corrupt 0, gen 0
+nvme-controller-down	syslog	Nov  4 10:41:00 srv kernel: nvme nvme2: frozen state error detected, reset controller
+nvme-controller-down	syslog	Nov  4 10:41:00 srv kernel: nvme nvme2: controller is down; will reset: CSTS=0xffffffff
+nvme-controller-down	syslog	Nov  4 10:41:00 srv kernel: nvme nvme2: I/O 12 QID 3 timeout, aborting
+!	syslog	Nov  4 10:41:00 srv kernel: nvme nvme2: 8/0/0 default/read/poll queues
+!	syslog	Nov  4 10:41:00 srv autotweak: Set nvme2 APST table entry 0 Next state: 3 Timeout: 200
+vm-disk-missing	libvirt	2026-11-04 10:41:00.000+0000: 12: error : virQEMUFileOpenAs:10665 : Failed to open file '/mnt/user/domains/Demo/vdisk1.img': No such file or directory
+vm-disk-missing	vm:Demo	2026-11-04 10:41:00.000+0000: 12: error : virQEMUFileOpenAs:10665 : Failed to open file '/mnt/user/isos/demo.iso': No such file or directory
+compose-stack-failed	syslog	Nov  4 10:41:00 srv compose.manager: [ERROR] [autostart] ERROR: Stack demo failed to start (exit code: 1)
+compose-stack-failed	syslog	Nov  4 10:41:00 srv compose.manager: [ERROR] [compose] Failed to start stack demo (exit code: 1)
+!	syslog	Nov  4 10:41:00 srv compose.manager: [DEBUG] [autostart] Results: 3 succeeded, 0 failed, 0 timed out (of 3 total)
+ud-remote-mount-failed	syslog	Nov  4 10:41:00 srv unassigned.devices: Remote Share '//NAS/Backup' failed to mount.
+# every other rule, on a line of its kind
+parity-corrected-p	syslog	Nov  5 10:01:02 srv kernel: md: recovery thread: P corrected, sector=12345
+parity-corrected-q	syslog	Nov  5 10:01:02 srv kernel: md: recovery thread: Q corrected, sector=12345
+parity-recurring-errors	syslog	Nov  5 10:01:02 srv kernel: md: sync done. time=3600sec, errors=14
+-parity-recurring-errors	syslog	Nov  5 10:01:02 srv kernel: md: sync done. time=3600sec, errors=0
+parity-errors-after-hw-swap	syslog	Nov  5 10:01:02 srv kernel: md: recovery thread: P incorrect, sector=12345
+md-read-error	syslog	Nov  5 10:01:02 srv kernel: md: disk2 read error, sector=12345
+md-write-error	syslog	Nov  5 10:01:02 srv kernel: md: disk2 write error, sector=12345
+disk-disabled	syslog	Nov  5 10:01:02 srv kernel: md: disk2 disabled
+array-failed-device-misleading	syslog	Nov  5 10:01:02 srv emhttpd: Array has 1 failed device
+smart-udma-crc	syslog	Nov  5 10:01:02 srv smartd[9]: Device: /dev/sdb, SMART Usage Attribute: 199 UDMA_CRC_Error_Count changed from 200 to 199
+smart-reallocated	syslog	Nov  5 10:01:02 srv smartd[9]: Device: /dev/sdb, SMART Usage Attribute: Reallocated_Sector_Ct changed from 100 to 99
+smart-pending-ssd-firmware	syslog	Nov  5 10:01:02 srv smartd[9]: Device: /dev/sdb, 1 Currently unreadable sectors, Current_Pending_Sector
+sense-key-medium-error	syslog	Nov  5 10:01:02 srv kernel: sd 1:0:0:0: [sdb] tag#3 Sense Key : Medium Error [current]
+disk-spin-up-fail	syslog	Nov  5 10:01:02 srv kernel: sd 1:0:0:0: [sdb] Spinning up disk... START_STOP FAILED
+disk-wrong-size	syslog	Nov  5 10:01:02 srv kernel: sd 1:0:0:0: [sdb] 4294967296 512-byte logical blocks: capacity 2.0 TB
+io-error-generic	syslog	Nov  5 10:01:02 srv kernel: I/O error, dev sdb, sector 1234 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 2
+usb-enclosure-disconnect	syslog	Nov  5 10:01:02 srv kernel: sd 1:0:0:0: [sdb] Device offline: not ready after error recovery
+btrfs-csum-failed	syslog	Nov  5 10:01:02 srv kernel: BTRFS warning (device sdb1): csum failed root 5 ino 257 off 4096 csum 0x1 expected csum 0x2 mirror 1
+btrfs-degraded	syslog	Nov  5 10:01:02 srv kernel: BTRFS info (device sdb1): allowing degraded mounts
+btrfs-transid-verify	syslog	Nov  5 10:01:02 srv kernel: BTRFS error (device sdb1): parent transid verify failed on 1234 wanted 12 found 11
+btrfs-no-space-plenty-free	syslog	Nov  5 10:01:02 srv kernel: BTRFS warning (device sdb1): ENOSPC at unlink, global reserve exhausted
+btrfs-dev-extents	syslog	Nov  5 10:01:02 srv kernel: BTRFS error (device sdb1): failed to verify dev extents against chunks: -117
+unmountable-after-power-loss	syslog	Nov  5 10:01:02 srv emhttpd: disk1 Unmountable: Wrong or no file system
+unmountable-after-upgrade	syslog	Nov  5 10:01:02 srv emhttpd: pool cache Unmountable after upgrade
+cache-pool-wrong-state	syslog	Nov  5 10:01:02 srv emhttpd: CACHE TOO MANY MISSING
+shfs-no-space	syslog	Nov  5 10:01:02 srv shfs: copy_file: /mnt/cache/a /mnt/disk1/a (28) No space left on device
+shfs-cache-full	syslog	Nov  5 10:01:02 srv shfs: share cache full
+shfs-assertion-shares-empty	syslog	Nov  5 10:01:02 srv shfs: shfs: ../lib/fuse.c:1450: unlink_node: Assertion `node->nlookup > 1' failed.
+smb-access-denied	syslog	Nov  5 10:01:02 srv smbd[12]: session setup failed: NT_STATUS_LOGON_FAILURE
+docker-no-space	syslog	Nov  5 10:01:02 srv dockerd[9]: write /var/lib/docker/tmp/layer: no space left on device
+docker-no-space	docker	time="2026-11-05T10:01:02+02:00" level=error msg="write failed: no space left on device"
+docker-permission-denied-oci	syslog	Nov  5 10:01:02 srv dockerd[9]: OCI runtime create failed: permission denied
+docker-sqlite-locked	docker	time="2026-11-05T10:01:02+02:00" level=error msg="SqliteError: database is locked"
+docker-service-failed	syslog	Nov  5 10:01:02 srv emhttpd: Docker Service failed to start
+docker-daemon-error	syslog	Nov  5 10:01:02 srv dockerd[9]: level=error msg="cannot join network"
+docker-daemon-error	docker	time="2026-11-05T10:01:02+02:00" level=fatal msg="Failed to start daemon"
+-docker-daemon-error	docker	time="2026-11-05T10:01:02+02:00" level=warning msg="error copying stdout"
+macvlan-call-trace	syslog	Nov  5 10:01:02 srv kernel: macvlan_broadcast+0x10/0x90 [macvlan] WARNING: CPU 2
+nfs-stale-handle	syslog	Nov  5 10:01:02 srv kernel: NFS: stale file handle on server
+macvlan-conflict	syslog	Nov  5 10:01:02 srv kernel: br0: received packet with duplicate address
+mcelog-amd-false-alarm	syslog	Nov  5 10:01:02 srv mcelog: ERROR: AMD Processor family 25: mcelog does not support this processor.
+-mce-hardware-error	syslog	Nov  5 10:01:02 srv mcelog: ERROR: AMD Processor family 25: mcelog does not support this processor.
+task-hung	syslog	Nov  5 10:01:02 srv kernel: INFO: task shfs:1234 blocked for more than 120 seconds.
+usb-flash-errors	syslog	Nov  5 10:01:02 srv kernel: usb 1-2: reset high-speed USB device, FAT-fs (sda1): error on the flash drive
+-usb-flash-errors	syslog	Nov  5 10:01:02 srv kernel: usb 1-2: error -71 fatal
+usb-enumerate-fail	syslog	Nov  5 10:01:02 srv kernel: usb 1-2: device not accepting address 5, error -71
+s3-sleep-hba-issue	syslog	Nov  5 10:01:02 srv kernel: PM: suspend devices failed, error -5
+oom-fork-inotify	syslog	Nov  5 10:01:02 srv crond[12]: fork: Cannot allocate memory
+var-log-full	syslog	Nov  5 10:01:02 srv rsyslogd: No space left on device, cannot write to /var/log/syslog
+plex-tmpfs-white-screen	syslog	Nov  5 10:01:02 srv php-fpm[9]: cannot write session file
+emhttp-php-memory-exhausted	syslog	Nov  5 10:01:02 srv php-fpm[9]: PHP Fatal error: Allowed memory size of 134217728 bytes exhausted
+call-trace	syslog	Nov  5 10:01:02 srv kernel: Call Trace:
+kernel-panic	syslog	Nov  5 10:01:02 srv kernel: Kernel panic - not syncing: Fatal exception
+unclean-shutdown	syslog	Nov  5 10:01:02 srv kernel: XFS (md1p1): Starting recovery (logdev: internal)
+libvirt-no-space	libvirt	2026-11-05 10:01:02.000+0000: 12: error : qemu write failed: No space left on device
+libvirt-failed-start	syslog	Nov  5 10:01:02 srv libvirtd[9]: error: cannot open image
+vm-gpu-code43	libvirt	2026-11-05 10:01:02.000+0000: 12: vfio: guest reports Code 43
+vfio-passthrough-fail	syslog	Nov  5 10:01:02 srv kernel: vfio-pci 0000:01:00.0: failed to set up the group
+vfio-passthrough-fail	libvirt	2026-11-05 10:01:02.000+0000: 12: vfio 0000:01:00.0: group 12 is not viable, cannot use the device
+mover-permission-denied	syslog	Nov  5 10:01:02 srv move: mover: /mnt/cache/a: Permission denied
+mover-rsync-vanished	syslog	Nov  5 10:01:02 srv move: mover: file has vanished: /mnt/cache/a
+slow-array-writes	syslog	Nov  5 10:01:02 srv root: write speed slow: 12 MB/s
+slow-parity-check	syslog	Nov  5 10:01:02 srv kernel: md: sync check speed 12.5M/s
+ntp-not-synced	syslog	Nov  5 10:01:02 srv ntpd[9]: no servers reachable, no server suitable for synchronization
+stp-topology-change	syslog	Nov  5 10:01:02 srv kernel: br0: topology change detected, propagating
+wireguard-handshake-fail	syslog	Nov  5 10:01:02 srv kernel: wireguard: wg0: Handshake for peer 1 did not complete after 5 seconds
+plugin-error	syslog	Nov  5 10:01:02 srv root: plugin: demo.plg: error: file not found
+zfs-checksum-error	syslog	Nov  5 10:01:02 srv kernel: ZFS: pool tank vdev sdb1 checksum error
+zfs-pool-degraded	syslog	Nov  5 10:01:02 srv kernel: ZFS: pool tank state DEGRADED
+smb-max-connections	syslog	Nov  5 10:01:02 srv smbd[12]: too many open files
+mover-rsync-xattr-btrfs	syslog	Nov  5 10:01:02 srv move: rsync: [receiver] rsync_xal_set: lsetxattr("/mnt/disk1/a","btrfs.compression") failed: Operation not supported (95)
+mover-rsync-code23	syslog	Nov  5 10:01:02 srv move: rsync error: some files/attrs were not transferred (see previous errors) (code 23) at main.c(1338)
+php-fpm-max-children	syslog	Nov  5 10:01:02 srv php-fpm[9]: [WARNING] [pool www] server reached max_children setting (50), consider raising it
+file-integrity-hash-mismatch	syslog	Nov  5 10:01:02 srv bunker: BLAKE3 hash key mismatch, /mnt/disk1/a is corrupted
+smb-no-path-service	syslog	Nov  5 10:01:02 srv smbd[12]: WARNING: No path in service demo - making it unavailable!
+rpc-statd-nfs-failure	syslog	Nov  5 10:01:02 srv rpc.statd[9]: Failed to read /var/lib/nfs/state: No such file
+ntp-clock-unsynchronized	syslog	Nov  5 10:01:02 srv ntpd[9]: kernel reports TIME_ERROR: 0x41: Clock Unsynchronized

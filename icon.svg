@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Lookout</title>
+  <rect x="8" y="8" width="240" height="240" rx="44" fill="#1f3b57"/>
+  <rect x="21" y="21" width="214" height="214" rx="32" fill="none" stroke="#e2601b" stroke-width="8"/>
+  <path d="M128 36 L210 92 H46 Z" fill="#ffffff"/>
+  <rect x="68" y="92" width="120" height="54" fill="#ffffff"/>
+  <rect x="84" y="102" width="88" height="34" rx="4" fill="#e2601b"/>
+  <rect x="54" y="146" width="148" height="14" rx="4" fill="#ffffff"/>
+  <path d="M98 160 L76 216 M158 160 L180 216" stroke="#ffffff" stroke-width="18" stroke-linecap="round" fill="none"/>
+  <path d="M90 196 H166" stroke="#ffffff" stroke-width="12" fill="none"/>
+</svg>

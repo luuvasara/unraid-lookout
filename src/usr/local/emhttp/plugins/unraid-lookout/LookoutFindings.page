@@ -1,0 +1,58 @@
+Menu="Lookout:1"
+Title="Findings"
+Tag="list"
+Markdown="false"
+---
+<?php $lk_v = substr(md5((string)@md5_file("$docroot/plugins/unraid-lookout/assets/findings.js") . @md5_file("$docroot/plugins/unraid-lookout/assets/style.css")), 0, 10); ?>
+<link rel="stylesheet" href="/plugins/unraid-lookout/assets/style.css?v=<?=$lk_v?>">
+<div id="lookout-app">
+<div class="lk-status-bar">
+    <div class="lk-status-left">
+        <span class="lk-daemon-status" id="lk-daemon">Checking...</span>
+        <span class="lk-rule-count" id="lk-rules"></span>
+    </div>
+    <div class="lk-status-right">
+        <button type="button" class="lk-btn lk-btn-sm" id="btn-daemon">Start Daemon</button>
+        <button type="button" class="lk-btn lk-btn-sm" id="btn-reload">Reload Rules</button>
+    </div>
+</div>
+<p class="lk-hint" id="lk-note" role="status"></p>
+<div class="lk-summary">
+    <div class="lk-card lk-card-critical" id="card-critical">
+        <div class="lk-card-count" id="count-critical">0</div>
+        <div class="lk-card-label">Critical</div>
+    </div>
+    <div class="lk-card lk-card-warning" id="card-warning">
+        <div class="lk-card-count" id="count-warning">0</div>
+        <div class="lk-card-label">Warning</div>
+    </div>
+    <div class="lk-card lk-card-info" id="card-info">
+        <div class="lk-card-count" id="count-info">0</div>
+        <div class="lk-card-label">Info</div>
+    </div>
+    <div class="lk-card lk-card-total" id="card-total">
+        <div class="lk-card-count" id="count-total">0</div>
+        <div class="lk-card-label">Unacknowledged</div>
+    </div>
+</div>
+
+<div class="lk-filters">
+    <select id="filter-severity"><option value="all">All Severities</option><option value="critical">Critical</option><option value="warning">Warning</option><option value="info">Info</option></select>
+    <select id="filter-category"><option value="all">All Categories</option></select>
+    <select id="filter-source"><option value="all">All Sources</option></select>
+    <label class="lk-checkbox"><input type="checkbox" id="filter-show-ack"> Show acknowledged</label>
+    <div class="lk-filter-actions">
+        <button type="button" class="lk-btn lk-btn-sm lk-btn-ack" id="btn-ack-all">Acknowledge All</button>
+        <button type="button" class="lk-btn lk-btn-sm lk-btn-danger" id="btn-clear">Clear All</button>
+    </div>
+</div>
+
+<table class="lk-table" id="findings-table">
+    <thead><tr>
+        <th class="lk-col-sev">Severity</th><th class="lk-col-time">Last seen</th><th>Finding</th>
+        <th class="lk-col-src">Source</th><th class="lk-col-act">Actions</th>
+    </tr></thead>
+    <tbody id="findings-body"></tbody>
+</table>
+</div>
+<script src="/plugins/unraid-lookout/assets/findings.js?v=<?=$lk_v?>"></script>

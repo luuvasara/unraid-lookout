@@ -1,0 +1,3 @@
+tests/.work/
+.build.*
+__pycache__/

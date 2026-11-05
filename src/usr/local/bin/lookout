@@ -1,0 +1,151 @@
+#!/usr/bin/php -q
+<?php
+/* Lookout: tails the Unraid logs, matches each line against the rule database and writes findings for the page.
+ * PHP because that is what every Unraid release has; there is no Python on a stock server.
+ * The daemon reacts to flag files in /var/run/unraid-lookout (stop, reload), so it needs no signal handling. */
+$root = getenv('LK_PLUGIN_DIR') ?: '/usr/local/emhttp/plugins/unraid-lookout';
+require_once "$root/include/lookout.php";
+
+const LK_POLL_US = 1000000;
+const LK_SAVE_SECONDS = 10;
+
+function lk_sources(array $c): array {
+  $map = [];
+  if ($c['monitor_syslog']) $map['syslog'] = lk_path('/var/log/syslog');
+  if ($c['monitor_docker']) $map['docker'] = lk_path('/var/log/docker.log');
+  if ($c['monitor_libvirt']) $map['libvirt'] = lk_path('/var/log/libvirt/libvirtd.log');
+  if ($c['monitor_vm_logs']) $map += lk_vm_logs();
+  return $map;
+}
+
+function lk_vm_logs(): array {
+  $map = [];
+  foreach (glob(lk_path('/var/log/libvirt/qemu/*.log')) ?: [] as $p) $map['vm:' . basename($p, '.log')] = $p;
+  return $map;
+}
+
+function lk_flag(string $name): bool {
+  $f = lk_run($name);
+  if (!is_file($f)) return false;
+  @unlink($f);
+  return true;
+}
+
+function lk_daemon(): int {
+  $pid = lk_daemon_pid();
+  if ($pid) { echo "Already running (pid $pid)\n"; return 0; }
+  @mkdir(lk_run(), 0755, true);
+  @unlink(lk_run('stop')); @unlink(lk_run('reload'));
+  file_put_contents(lk_pidfile(), (string)getmypid());
+  $config = lk_config();
+  // The first start of a boot reads the logs from their first line, so errors from before the start count too.
+  $first = !is_file(lk_run('read-from-start'));
+  @touch(lk_run('read-from-start'));
+  $load = function () use (&$config, &$compiled, &$badRules, &$tailers, $first) {
+    $config = lk_config();
+    [$compiled, $badRules] = lk_compile(lk_load_rules());
+    if ($badRules) lk_log('rules that do not compile: ' . implode(', ', $badRules));
+    $want = lk_sources($config);
+    foreach (array_diff_key($tailers, $want) as $k => $_) unset($tailers[$k]);
+    foreach ($want as $k => $p) { if (!isset($tailers[$k])) $tailers[$k] = new LkTailer($p, !$first); }
+  };
+  $compiled = []; $badRules = []; $tailers = [];
+  $load();
+  lk_log(sprintf('started, watching %d sources with %d rules', count($tailers), count($compiled)));
+  $n = lk_read_previous($compiled, $config);
+  if ($n) lk_log("$n matches in the log of the previous boot");
+  $pending = []; $lastSave = time(); $lastState = 0;
+  // What was already in the logs is listed, but only what happens from now on sends a notification.
+  $backlog = $first;
+  while (true) {
+    if (lk_flag('stop')) break;
+    if (lk_flag('reload')) { $load(); lk_log(sprintf('reloaded: %d sources, %d rules', count($tailers), count($compiled))); }
+    $min = LK_RANK[$config['severity_filter']];
+    foreach ($tailers as $name => $t) {
+      foreach ($t->lines() as $line) {
+        foreach (lk_match($compiled, $line, $name) as $r) {
+          if ((LK_RANK[$r['severity'] ?? 'info'] ?? 0) < $min) continue;
+          $k = "{$r['id']}:$name:" . lk_signature($line);
+          if (isset($pending[$k])) $pending[$k][4]++;
+          else $pending[$k] = [$r, $line, $name, time(), 1];
+        }
+      }
+    }
+    if ($config['monitor_vm_logs']) foreach (lk_vm_logs() as $k => $p) { if (!isset($tailers[$k])) $tailers[$k] = new LkTailer($p, false); }
+    $now = time();
+    $caughtUp = true;
+    if ($backlog) foreach ($tailers as $t) $caughtUp = $caughtUp && $t->caughtUp();
+    if ($pending && ($now - $lastSave >= LK_SAVE_SECONDS || ($backlog && $caughtUp))) {
+      $hits = array_values($pending); $pending = [];
+      lk_flush($hits, $config, !$backlog);
+      $lastSave = $now;
+    }
+    if ($caughtUp) $backlog = false;
+    if ($now - $lastState >= 30) {
+      lk_write_atomic(lk_state('state.json'), json_encode(['rules' => count($compiled), 'rules_bad' => $badRules, 'sources' => array_keys($tailers), 'updated' => gmdate('c')]));
+      $lastState = $now;
+    }
+    usleep(getenv('LK_POLL_US') !== false ? (int)getenv('LK_POLL_US') : LK_POLL_US);
+  }
+  if ($pending) lk_flush(array_values($pending), $config, !$backlog);
+  @unlink(lk_pidfile()); @unlink(lk_state('state.json'));
+  lk_log('stopped');
+  return 0;
+}
+
+function lk_cli_findings(string $fmt): int {
+  $d = lk_read_json(lk_findings_file());
+  if (!$d || empty($d['findings'])) { echo $fmt === 'json' ? "{\"findings\":[],\"total\":0}\n" : "No findings.\n"; return 0; }
+  if ($fmt === 'json') { echo json_encode($d, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n"; return 0; }
+  foreach (array_slice($d['findings'], -20) as $f) {
+    printf("[%s] %s %s (source: %s, x%d)%s\n  log: %s\n", strtoupper($f['severity']), substr($f['timestamp'], 0, 19), $f['name'], $f['log_source'],
+           $f['repeat_count'], !empty($f['acknowledged']) ? ' [ACK]' : '', substr($f['log_line'], 0, 120));
+    if ($f['recommendation'] !== '') echo "  fix: {$f['recommendation']}\n";
+    if ($f['setting_path'] !== '') echo "  setting: {$f['setting_path']}\n";
+    echo "\n";
+  }
+  return 0;
+}
+
+$usage = "Usage: lookout {start|stop|status|findings [json]|clear|reload|ack <id>|check-rules}\n";
+$cmd = $argv[1] ?? '';
+switch ($cmd) {
+  case 'start': exit(lk_daemon());
+  case 'stop':
+    @mkdir(lk_run(), 0755, true);
+    $pid = lk_daemon_pid();
+    if (!$pid) { echo "Not running\n"; exit(0); }
+    touch(lk_run('stop'));
+    for ($i = 0; $i < 50 && lk_daemon_pid(); $i++) usleep(100000);
+    if (lk_daemon_pid()) posix_kill($pid, 15);
+    @unlink(lk_pidfile());
+    echo "Stopped (pid $pid)\n";
+    exit(0);
+  case 'status':
+    $s = lk_status();
+    if (!$s['running']) { echo "lookout is not running\n"; exit(1); }
+    printf("lookout is running (pid %d)\n  rules: %d\n  findings: %d\n", lk_daemon_pid(), $s['rules'], count(lk_read_json(lk_findings_file())['findings'] ?? []));
+    exit(0);
+  case 'findings': exit(lk_cli_findings($argv[2] ?? 'text'));
+  case 'ack':
+    $id = preg_replace('/[^a-f0-9]/', '', $argv[2] ?? '');
+    $found = false;
+    lk_with_findings(function ($d) use ($id, &$found) { foreach ($d['findings'] as &$f) if ($f['id'] === $id) { $f['acknowledged'] = true; $found = true; } unset($f); return $d; });
+    echo $found ? "Acknowledged $id\n" : "Finding $id not found.\n";
+    exit($found ? 0 : 1);
+  case 'clear':
+    lk_with_findings(function ($d) { $d['findings'] = []; return $d; });
+    echo "Findings cleared.\n";
+    exit(0);
+  case 'reload':
+    if (!lk_daemon_pid()) { echo "Daemon not running.\n"; exit(0); }
+    @mkdir(lk_run(), 0755, true);
+    touch(lk_run('reload'));
+    echo "Reload requested.\n";
+    exit(0);
+  case 'check-rules':
+    [$ok, $bad] = lk_compile(lk_load_rules());
+    printf("%d rules compile, %d do not%s\n", count($ok), count($bad), $bad ? ': ' . implode(', ', $bad) : '');
+    exit($bad ? 1 : 0);
+  default: echo $usage; exit(1);
+}

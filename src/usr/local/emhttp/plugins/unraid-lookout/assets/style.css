@@ -1,0 +1,187 @@
+/* Lookout. No fixed text or page colors: these sit on all four Unraid themes, which the browser's dark-mode setting
+ * knows nothing about. Severity colors are the only hues, tints are grey with alpha. */
+
+#lookout-app {
+    --lk-line: rgba(128, 128, 128, .35);
+    --lk-tint: rgba(128, 128, 128, .12);
+    --lk-critical: #e5484d;
+    --lk-warning: #f76b15;
+    --lk-info: #3b82f6;
+    --lk-ok: #30a46c;
+}
+
+/* Status Bar */
+.lk-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--lk-tint);
+    border: 1px solid var(--lk-line);
+    border-radius: 4px;
+    margin-bottom: 12px;
+}
+.lk-status-left { display: flex; align-items: center; gap: 16px; }
+.lk-status-right { display: flex; gap: 6px; }
+.lk-daemon-status { font-weight: 600; font-size: 13px; }
+.lk-running { color: var(--lk-ok); }
+.lk-stopped { color: var(--lk-critical); }
+.lk-rule-count { opacity: .75; font-size: 12px; }
+.lk-version { opacity: .6; font-size: 11px; font-style: italic; }
+
+/* Summary Cards */
+.lk-summary {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.lk-card {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.1s;
+    border: 2px solid transparent;
+}
+.lk-card:hover { transform: translateY(-2px); }
+.lk-card-count { font-size: 28px; font-weight: 700; }
+.lk-card-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.lk-card-critical { background: var(--lk-tint); color: var(--lk-critical); border-color: var(--lk-critical); }
+.lk-card-warning { background: var(--lk-tint); color: var(--lk-warning); border-color: var(--lk-warning); }
+.lk-card-info { background: var(--lk-tint); color: var(--lk-info); border-color: var(--lk-info); }
+.lk-card-total { background: var(--lk-tint); border-color: var(--lk-line); }
+
+/* Filters */
+.lk-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.lk-filters select {
+    width: auto;
+    min-width: 0;
+    max-width: 240px;
+    margin: 0;
+    padding: 4px 24px 4px 8px;
+    border: 1px solid var(--lk-line);
+    border-radius: 3px;
+    font-size: 13px;
+}
+.lk-checkbox { font-size: 13px; display: flex; align-items: center; gap: 4px; }
+.lk-filter-actions { margin-left: auto; display: flex; gap: 6px; }
+
+/* Buttons */
+.lk-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--lk-line);
+    border-radius: 3px;
+    margin: 0;
+    background: transparent;
+    color: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    min-width: 0;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+.lk-btn:hover { background: var(--lk-tint); color: inherit; }
+.lk-btn-sm { padding: 4px 8px; font-size: 12px; }
+.lk-btn-xs { padding: 2px 6px; font-size: 11px; }
+.lk-btn-ack { border-color: var(--lk-ok); color: var(--lk-ok); }
+.lk-btn-ack:hover { background: var(--lk-tint); color: var(--lk-ok); }
+.lk-btn-danger { border-color: var(--lk-critical); color: var(--lk-critical); }
+.lk-btn-danger:hover { background: var(--lk-tint); color: var(--lk-critical); }
+
+/* Findings Table */
+.lk-table {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.lk-col-sev { width: 76px; }
+.lk-col-time { width: 150px; }
+.lk-col-src { width: 110px; }
+.lk-col-act { width: 150px; }
+.lk-table td { overflow-wrap: anywhere; white-space: normal; }
+.lk-desc, .lk-rec, .lk-setting { margin-top: 3px; }
+.lk-rec-label { font-weight: 600; }
+.lk-table th {
+    background: var(--lk-tint);
+    border: 1px solid var(--lk-line);
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.lk-table td {
+    border: 1px solid var(--lk-line);
+    padding: 6px 8px;
+    vertical-align: top;
+}
+.lk-table tbody tr:hover { background: var(--lk-tint); }
+.lk-table tbody tr.lk-ack { opacity: 0.5; }
+
+/* Severity badges */
+.lk-sev-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.lk-sev-badge-critical { background: #c62828; color: #fff; }
+.lk-sev-badge-warning { background: #e65100; color: #fff; }
+.lk-sev-badge-info { background: #1565c0; color: #fff; }
+
+/* Severity row indicators */
+.lk-sev-critical td:first-child { border-left: 3px solid var(--lk-critical); }
+.lk-sev-warning td:first-child { border-left: 3px solid var(--lk-warning); }
+.lk-sev-info td:first-child { border-left: 3px solid var(--lk-info); }
+
+.lk-table td.lk-ts { font-family: monospace; font-size: 11px; white-space: nowrap; }
+.lk-repeat { background: #ff9800; color: #fff; padding: 1px 4px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+.lk-setting { opacity: .75; font-size: 11px; }
+.lk-empty { text-align: center; padding: 24px; opacity: .7; font-style: italic; }
+
+/* Settings Panel */
+.lk-settings-panel {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid var(--lk-line);
+    border-radius: 4px;
+    background: var(--lk-tint);
+}
+.lk-settings-panel h3 { margin: 0 0 12px 0; font-size: 16px; }
+.lk-settings-table { width: 100%; }
+.lk-settings-table td { padding: 4px 8px; vertical-align: middle; }
+.lk-settings-table input[type="text"],
+.lk-settings-table input[type="number"],
+.lk-settings-table select {
+    padding: 4px 8px;
+    border: 1px solid var(--lk-line);
+    border-radius: 3px;
+}
+.lk-settings-table input[type="number"] { width: 100px; }
+.lk-settings-table td.lk-hint { white-space: normal; }
+.lk-hint { font-size: 11px; opacity: .75; padding-left: 8px; font-style: italic; }
+
+.lk-logrow td { font-family: bitstream, monospace; word-break: break-all; }
+@media (max-width: 900px) {
+    .lk-summary { flex-wrap: wrap; }
+    .lk-card { flex: 1 1 40%; }
+    .lk-table, .lk-table thead, .lk-table tbody, .lk-table tr, .lk-table td { display: block; width: auto; }
+    .lk-table thead { display: none; }
+    .lk-table tr { border: 1px solid var(--lk-line); margin-bottom: 8px; }
+    .lk-table td { border: 0; }
+    .lk-table td.lk-ts { white-space: normal; }
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommunityApplications>
+  <Profile>Lookout for Unraid watches your logs and explains known errors in plain language, with what to check and where. Support and questions: the GitHub issues of this repository.</Profile>
+  <Icon>https://raw.githubusercontent.com/luuvasara/unraid-lookout/main/icon.png</Icon>
+  <WebPage>https://github.com/luuvasara/unraid-lookout</WebPage>
+</CommunityApplications>

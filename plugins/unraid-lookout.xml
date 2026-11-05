@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Plugin>
+  <Name>Lookout</Name>
+  <PluginURL>https://raw.githubusercontent.com/luuvasara/unraid-lookout/main/unraid-lookout.plg</PluginURL>
+  <Support>https://github.com/luuvasara/unraid-lookout/issues</Support>
+  <Project>https://github.com/luuvasara/unraid-lookout</Project>
+  <Icon>https://raw.githubusercontent.com/luuvasara/unraid-lookout/main/icon.png</Icon>
+  <Category>Tools:System</Category>
+  <MinVer>6.12.0</MinVer>
+  <License>GPL-2.0</License>
+  <ReadMe>https://github.com/luuvasara/unraid-lookout#readme</ReadMe>
+  <ExtraSearchTerms>syslog log errors rules diagnostics btrfs mover docker notifications</ExtraSearchTerms>
+  <Overview>A database of more than 100 known Unraid log errors, each with what it means and what to do about it, and a small daemon that checks your logs against it.
+
+- Reads the system, Docker, libvirt and VM logs as they are written, and the log saved at the last shutdown if your server keeps one.
+- A repeated error stays one finding with a count. A flood folds into one.
+- Optional Unraid notifications, one per rule within a time you set, and any rule can be muted.
+- Add your own rules in a file on the flash drive.
+
+It only reads logs. It never changes a setting or restarts anything.</Overview>
+</Plugin>

@@ -1,0 +1,84 @@
+<?xml version='1.0' standalone='yes'?>
+<!DOCTYPE PLUGIN [
+  <!ENTITY name      "unraid-lookout">
+  <!ENTITY author    "Lookout project">
+  <!ENTITY version   "2026.11.05">
+  <!ENTITY gitURL    "https://raw.githubusercontent.com/luuvasara/unraid-lookout/main">
+  <!ENTITY pluginURL "&gitURL;/&name;.plg">
+  <!ENTITY pkg       "&name;-&version;-x86_64-1.txz">
+  <!ENTITY pkgURL    "&gitURL;/packages/&pkg;">
+  <!ENTITY md5       "19faf9c879398be724b5631ff4e5a1da">
+]>
+<!-- A rule database of known Unraid log errors, each with what it means and what to do, and a small daemon that checks
+     the logs against it.
+     Bump &version; on EVERY change (YYYY.MM.DD plus an optional letter); build.sh fills in &md5;.
+     Built from the shared plugin kit in kit/. -->
+<PLUGIN name="&name;" author="&author;" version="&version;" min="6.12.0" icon="lookout.png"
+        launch="Settings/Lookout" pluginURL="&pluginURL;" support="https://github.com/luuvasara/unraid-lookout/issues">
+
+<CHANGES>
+###2026.11.05
+- First release.
+- More than 100 rules for known Unraid log errors: disks, the array, file systems, hardware, network, Docker, VMs, shares and more. Each finding says what the error means, what to check, and which setting or file it concerns.
+- Severity follows what the line says: a corrected memory or CPU error is listed as info, an uncorrected one as critical.
+- Checks the system log, the Docker log and the libvirt and VM logs as they are written, and the log saved at the last shutdown, if your server keeps one.
+- What is already in the logs at the first start is listed, without notifications. Notifications are for what happens from then on.
+- A repeated error stays one finding with a count, also when numbers or addresses in the line differ. A flood of messages from one rule folds into one finding.
+- Optional Unraid notifications for critical or warning findings: one per rule within a time you set, and any rule can be muted.
+- Your own rules: custom-rules.json on the flash drive.
+</CHANGES>
+
+<!-- Pre-install: note what this run is for the message at the end, stop a running daemon, drop older packages. -->
+<FILE Run="/bin/bash">
+<INLINE>
+mkdir -p /boot/config/plugins/&name; /var/run/&name;
+OLD=
+for f in /var/log/packages/&name;-*-x86_64-1; do
+  if [ -e "$f" ]; then OLD=${f##*/&name;-}; OLD=${OLD%-x86_64-1}; fi
+done
+if [ -n "$OLD" ]; then echo "update $OLD"
+elif [ -e /boot/config/plugins/&name;.plg ]; then echo boot
+else echo fresh
+fi &gt;/var/run/&name;/install-from
+if [ -x /usr/local/bin/lookout ]; then
+  /usr/local/bin/lookout stop >/dev/null 2>&amp;1
+fi
+for f in /boot/config/plugins/&name;/&name;-*-x86_64-1.txz; do
+  case $f in */&name;-&version;-x86_64-1.txz) ;; *) if [ -f "$f" ]; then rm -f "$f"; fi ;; esac
+done
+exit 0
+</INLINE>
+</FILE>
+
+<!-- The package. -->
+<FILE Name="/boot/config/plugins/&name;/&pkg;" Run="upgradepkg --install-new --reinstall">
+<URL>&pkgURL;</URL>
+<MD5>&md5;</MD5>
+</FILE>
+
+<!-- Post-install, also at every boot: start the daemon, then the message. -->
+<FILE Run="/bin/bash">
+<INLINE>
+/etc/rc.d/rc.lookout start
+MODE=; OLD=
+read -r MODE OLD 2&gt;/dev/null &lt;/var/run/&name;/install-from
+FIRST_RUN="Settings, Lookout lists what the rules find in your logs." \
+  /usr/local/emhttp/plugins/&name;/kit/install-notes.sh "&version;" "$MODE" "$OLD"
+rm -f /var/run/&name;/install-from
+</INLINE>
+</FILE>
+
+<!-- Remove: stop the daemon and the package. Settings and custom rules stay on the flash drive. -->
+<FILE Run="/bin/bash" Method="remove">
+<INLINE>
+if [ -x /usr/local/bin/lookout ]; then
+  /usr/local/bin/lookout stop >/dev/null 2>&amp;1
+fi
+removepkg &name;-&version;-x86_64-1 >/dev/null 2>&amp;1
+rm -rf /usr/local/emhttp/plugins/&name; /usr/local/share/&name; /var/run/&name; /var/local/emhttp/plugins/&name;
+rm -f /var/log/lookout.log /boot/config/plugins/&name;/&name;-*-x86_64-1.txz
+echo "Lookout removed. Settings are kept in /boot/config/plugins/&name;/ (delete that folder to forget them)."
+</INLINE>
+</FILE>
+
+</PLUGIN>
