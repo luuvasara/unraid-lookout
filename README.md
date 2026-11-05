@@ -6,7 +6,7 @@ A database of known Unraid log errors, each with what it means and what to do ab
 
 Lookout especially goes after the obscure ones: errors whose message doesn't point at the real problem, and alarming lines that mean nothing.
 
-When a line like `BTRFS warning: devid 2 uuid ... is missing` reaches the log, Lookout lists it under Settings, Lookout with the rule's explanation, what to check, and the setting or file it concerns.
+When the log says `auth request unexpected status: 504`, nothing in that line mentions the real problem: every php-fpm worker is busy. Lookout lists it under Settings, Lookout with that explanation, what to check, and the setting or file it concerns.
 
 ## Messages that mislead
 
