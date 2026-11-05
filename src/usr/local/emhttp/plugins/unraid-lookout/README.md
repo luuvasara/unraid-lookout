@@ -1,3 +1,3 @@
 **Lookout**
 
-Watches the Unraid logs and explains known errors in plain language, with what to check and where.
+Watches the Unraid logs and explains known errors in plain language, with what to check and where. Especially the obscure ones, where the message doesn't point at the real problem.

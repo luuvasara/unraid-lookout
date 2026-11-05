@@ -2,6 +2,9 @@
 
 Copied by the build from the <CHANGES> block of unraid-lookout.plg; edit the .plg, not this file.
 
+## 2026.11.05a
+- The description now leads with the errors Lookout is built for: obscure ones whose message doesn't point at the real problem, and alarming lines that mean nothing. The rules are unchanged.
+
 ## 2026.11.05
 - First release.
 - More than 100 rules for known Unraid log errors: disks, the array, file systems, hardware, network, Docker, VMs, shares and more. Each finding says what the error means, what to check, and which setting or file it concerns.

@@ -12,6 +12,8 @@
   <ExtraSearchTerms>syslog log errors rules diagnostics btrfs mover docker notifications</ExtraSearchTerms>
   <Overview>A database of more than 100 known Unraid log errors, each with what it means and what to do about it, and a small daemon that checks your logs against it.
 
+It especially goes after the obscure ones: errors whose message doesn't point at the real problem, and alarming lines that mean nothing.
+
 - Reads the system, Docker, libvirt and VM logs as they are written, and the log saved at the last shutdown if your server keeps one.
 - A repeated error stays one finding with a count. A flood folds into one.
 - Optional Unraid notifications, one per rule within a time you set, and any rule can be muted.

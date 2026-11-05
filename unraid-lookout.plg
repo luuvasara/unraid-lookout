@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
   <!ENTITY name      "unraid-lookout">
   <!ENTITY author    "Lookout project">
-  <!ENTITY version   "2026.11.05">
+  <!ENTITY version   "2026.11.05a">
   <!ENTITY gitURL    "https://raw.githubusercontent.com/luuvasara/unraid-lookout/main">
   <!ENTITY pluginURL "&gitURL;/&name;.plg">
   <!ENTITY pkg       "&name;-&version;-x86_64-1.txz">
   <!ENTITY pkgURL    "&gitURL;/packages/&pkg;">
-  <!ENTITY md5       "19faf9c879398be724b5631ff4e5a1da">
+  <!ENTITY md5       "091dcf08a9667c05c41fd8e0617757aa">
 ]>
 <!-- A rule database of known Unraid log errors, each with what it means and what to do, and a small daemon that checks
      the logs against it.
@@ -17,6 +17,9 @@
         launch="Settings/Lookout" pluginURL="&pluginURL;" support="https://github.com/luuvasara/unraid-lookout/issues">
 
 <CHANGES>
+###2026.11.05a
+- The description now leads with the errors Lookout is built for: obscure ones whose message doesn't point at the real problem, and alarming lines that mean nothing. The rules are unchanged.
+
 ###2026.11.05
 - First release.
 - More than 100 rules for known Unraid log errors: disks, the array, file systems, hardware, network, Docker, VMs, shares and more. Each finding says what the error means, what to check, and which setting or file it concerns.

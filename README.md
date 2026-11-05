@@ -4,7 +4,21 @@
 
 A database of known Unraid log errors, each with what it means and what to do about it, and a small daemon that checks your logs against it.
 
+Lookout especially goes after the obscure ones: errors whose message doesn't point at the real problem, and alarming lines that mean nothing.
+
 When a line like `BTRFS warning: devid 2 uuid ... is missing` reaches the log, Lookout lists it under Settings, Lookout with the rule's explanation, what to check, and the setting or file it concerns.
+
+## Messages that mislead
+
+| The log says | What is usually behind it |
+|---|---|
+| `No space left on device`, with plenty of free space | BTRFS metadata chunks are full, or old Docker subvolumes are holding space |
+| `Array has 1 failed device` | Parity is marked invalid; no device may have failed |
+| `auth request unexpected status: 504` | Every php-fpm worker is busy, so the WebGUI's login check times out |
+| `database is locked` in a container | Its SQLite database is on SMB, which lacks the file locking SQLite needs |
+| `fork: Cannot allocate memory` | Can be exhausted inotify watches rather than RAM |
+| `failed to register layer` | `docker.img` is damaged, usually after a full cache or an unclean shutdown |
+| `failed to prefill DIMM database` | Harmless: the motherboard's tables are incomplete |
 
 ## What it reads
 

@@ -9,8 +9,9 @@ render_cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done; }
 trap render_cleanup EXIT
 stage_web() {   # stage_web <webroot> [6.12]: unpack the built package's plugin dir
   local web=$1 gui=${2:-} pkg
-  pkg=$(find "$HERE/packages" -name "$NAME-*-x86_64-1.txz" | sort -V | tail -n 1)
-  [ -n "$pkg" ] || { echo "FAIL no package: build first"; return 1; }
+  # the .plg's version, not a sort: sort -V puts 2026.11.05 after 2026.11.05a
+  pkg=$HERE/packages/$NAME-$(sed -n 's/^ *<!ENTITY version *"\([^"]*\)">.*/\1/p' "$HERE/$NAME.plg")-x86_64-1.txz
+  [ -f "$pkg" ] || { echo "FAIL no package: build first"; return 1; }
   rm -rf "$web"; mkdir -p "$web/plugins" "$web/pkg" "$web/webGui/javascript"
   tar -xJf "$pkg" -C "$web/pkg"
   cp -a "$web/pkg/usr/local/emhttp/plugins/$NAME" "$web/plugins/"
