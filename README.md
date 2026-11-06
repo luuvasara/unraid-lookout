@@ -20,6 +20,24 @@ When the log says `auth request unexpected status: 504`, nothing in that line me
 | `failed to register layer` | `docker.img` is damaged, usually after a full cache or an unclean shutdown |
 | `failed to prefill DIMM database` | Harmless: the motherboard's tables are incomplete |
 
+## Screenshots
+
+![The Findings tab](docs/screenshots/findings.png)
+
+The Findings tab: each message with what it means and what to do.
+
+![A finding for a 504 error](docs/screenshots/finding-504.png)
+
+`auth request unexpected status: 504` explained, with the log line shown.
+
+![A finding for a failed device message](docs/screenshots/finding-array.png)
+
+"Array has 1 failed device" can just mean parity is marked invalid.
+
+![The Settings tab](docs/screenshots/settings.png)
+
+The Settings tab.
+
 ## What it reads
 
 - The system log, the Docker log, the libvirt log and the log of each VM, as they are written.
