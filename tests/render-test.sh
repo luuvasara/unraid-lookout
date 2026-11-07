@@ -15,18 +15,19 @@ cp "$HERE/src/usr/local/share/$NAME/rules.json" "$FX/usr/local/share/$NAME/"
 php -r '
 $evil = "<img src=x onerror=\"document.title=\x27PWNED\x27\"><script>document.title=\x27PWNED\x27</script>";
 $now = gmdate("c");
-$f = [["id"=>"aaaaaaaaaaaa","timestamp"=>$now,"last_seen"=>$now,"rule_id"=>"btrfs-dev-missing","category"=>"filesystem","severity"=>"critical","name"=>"BTRFS device missing","description"=>"A device of the BTRFS pool is missing.","recommendation"=>"Check the cabling of the pool device.","setting_path"=>"Main > Pool","config_file"=>"","log_source"=>"syslog","log_line"=>"Nov  5 10:00:00 srv kernel: BTRFS warning: devid 2 uuid 12 is missing $evil","repeat_count"=>3,"acknowledged"=>false,"dedup_key"=>"k1"],
+$f = [["id"=>"aaaaaaaaaaaa","timestamp"=>$now,"last_seen"=>$now,"rule_id"=>"btrfs-dev-missing","category"=>"filesystem","severity"=>"critical","name"=>"BTRFS device missing","description"=>"A device of the BTRFS pool is missing.","recommendation"=>"Check the cabling of the pool device.","setting_path"=>"Main > Pool","config_file"=>"","log_source"=>"syslog","log_line"=>"Nov  5 10:00:00 srv kernel: BTRFS warning (device nvme1n1p1): devid 2 uuid 12 is missing $evil","repeat_count"=>3,"acknowledged"=>false,"dedup_key"=>"k1","drives"=>[["name"=>"nvme1n1p1","label"=>"nvme (nvme1n1, WD Black SN850X, serial NV001)"],["name"=>"devid 2","label"=>"nvme2 (nvme0n1, WD Black SN850X, serial NV000) $evil"]]],
  ["id"=>"bbbbbbbbbbbb","timestamp"=>$now,"last_seen"=>$now,"rule_id"=>"usb-disconnect","category"=>"hardware","severity"=>"warning","name"=>"USB device disconnected $evil","description"=>$evil,"recommendation"=>$evil,"setting_path"=>$evil,"config_file"=>$evil,"log_source"=>"vm:$evil","log_line"=>"usb 1-2: USB disconnect","repeat_count"=>1,"acknowledged"=>false,"dedup_key"=>"k2","flood"=>true],
  ["id"=>"cccccccccccc","timestamp"=>$now,"last_seen"=>$now,"rule_id"=>"mcelog-dimm-prefill","category"=>"hardware","severity"=>"info","name"=>"mcelog DIMM database","description"=>"Harmless on most boards.","recommendation"=>"Nothing to do.","setting_path"=>"","config_file"=>"","log_source"=>"syslog (previous boot)","log_line"=>"mcelog: failed to prefill DIMM database","repeat_count"=>1,"acknowledged"=>true,"dedup_key"=>"k3"]];
 file_put_contents($argv[1], json_encode(["findings"=>$f]));' "$FX/var/local/emhttp/plugins/$NAME/findings.json"
 export LK_ROOT=$FX LK_BIN=/bin/true LK_RC=/bin/true
-TABS="Findings=LookoutFindings,Settings=LookoutSettings,About=LookoutAbout"
+php "$HERE/kit/render/drivemap-fixture.php" "$W/drives"; export DRIVEMAP_ROOT=$W/drives
+TABS="Findings=LookoutFindings,Settings=LookoutSettings,Drives=LookoutDrives,About=LookoutAbout"
 for spec in black white gray azure black:6.12 white:6.12; do
   theme=${spec%%:*}; gui=; [ "$spec" != "$theme" ] && gui=6.12
   web=$W/web-$theme${gui:+-$gui}; stage_web "$web" "$gui" || exit 1
   port=$(free_port); start_harness "$web" "$port" "$theme" "$TABS" "$gui"
   tag=$theme${gui:+-6.12}
-  for tab in 1 2 3; do
+  for tab in 1 2 3 4; do
     shot "http://127.0.0.1:$port/?tab=$tab" "$OUT/kit-unraid-lookout-$tag-$tab.png"
     [ -s "$OUT/kit-unraid-lookout-$tag-$tab.png" ] || bad "no screenshot $tag tab $tab"
   done
@@ -38,6 +39,8 @@ for spec in black white gray azure black:6.12 white:6.12; do
   grep -q "$(sed -n 's/^ *<!ENTITY version *"\([^"]*\)">.*/\1/p' "$HERE/$NAME.plg")" "$W/dom-$tag.html" && ok "$tag: About version" || bad "$tag: About version"
   grep -q 'Lookout is by the Lookout project' "$W/dom-$tag.html" && grep -q 'General Public License' "$W/dom-$tag.html" && ok "$tag: About names project, licence and source" || bad "$tag: About attribution"
   grep -q 'ex\. 21600' "$W/dom-$tag.html" && [ "$(grep -c 'class="lk-hint">[^<]*ex\. ' "$W/dom-$tag.html")" -ge 10 ] && ok "$tag: every setting has an example and a reason" || bad "$tag: setting hints"
+  [ "$(grep -c 'data-dm-key=' "$W/dom-$tag.html")" = 9 ] && grep -q '>nvme2n1<' "$W/dom-$tag.html" && ok "$tag: Drives tab lists the nine drives" || bad "$tag: Drives tab: $(grep -c 'data-dm-key=' "$W/dom-$tag.html") rows"
+  grep -q 'Drive: </span>devid 2 is nvme2 (nvme0n1' "$W/dom-$tag.html" && ok "$tag: a finding names its drive" || bad "$tag: finding drive line"
   if grep -E "PHP (Warning|Fatal|Parse)" "$web.log" | head -5; then bad "$tag: PHP errors"; fi
 done
 render_cleanup

@@ -2,6 +2,10 @@
 
 Copied by the build from the <CHANGES> block of unraid-lookout.plg; edit the .plg, not this file.
 
+## 2026.11.07
+- A finding whose log line names a drive by a kernel name, a port or a file system id (ata7, sdk1, nvme2, 7:0:2:0, btrfs devid 2) now says which drive that is: its Unraid slot, model and serial.
+- New Drives tab: every drive with all the names it goes by, and a box that finds the drive a name or a pasted log line means.
+
 ## 2026.11.05a
 - The description now leads with the errors Lookout is built for: obscure ones whose message doesn't point at the real problem, and alarming lines that mean nothing. The rules are unchanged.
 

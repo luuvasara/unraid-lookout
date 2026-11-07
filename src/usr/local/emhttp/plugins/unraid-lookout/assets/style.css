@@ -185,3 +185,6 @@
     .lk-table td { border: 0; }
     .lk-table td.lk-ts { white-space: normal; }
 }
+
+/* The drive a finding's log line names, from the kit's drive map */
+.lk-drive { margin-top: 4px; font-size: 12px; }

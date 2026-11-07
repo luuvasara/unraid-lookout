@@ -46,6 +46,10 @@ The Settings tab.
 
 It only reads logs. It never changes a setting or restarts anything.
 
+## Which drive
+
+A log line often names a drive in a way that doesn't say which one it is: `ata7`, `sdk1`, `nvme2`, `7:0:2:0` or `btrfs devid 2`. A finding then also says which drive that is: its Unraid slot, model and serial. The Drives tab lists every drive with all the names it goes by, and finds the drive a name or a pasted log line means.
+
 ## The rules
 
 More than 100 rules in 13 categories, in `/usr/local/share/unraid-lookout/rules.json`. Each one has a pattern, a severity (critical, warning or info), a description, a recommendation and, where it applies, the setting or config file.

@@ -7,6 +7,15 @@ mkdir("$root/usr/local/share/unraid-lookout", 0755, true);
 copy("$here/src/usr/local/share/unraid-lookout/rules.json", "$root/usr/local/share/unraid-lookout/rules.json");
 foreach (['boot/config/plugins/unraid-lookout', 'var/log/libvirt/qemu', 'var/run/unraid-lookout', 'var/local/emhttp/plugins/unraid-lookout', 'boot/logs'] as $d) mkdir("$root/$d", 0755, true);
 putenv("LK_ROOT=$root");
+// a made-up server for the kit's drive map: one SATA SSD on ata7 in the slot "cache"
+$dm = "$root/drivemap"; $real = '/sys/devices/pci0000:00/0000:00:17.0/ata7/host6/target6:0:0/6:0:0:0/block/sdk';
+mkdir("$dm$real/sdk1", 0755, true); mkdir("$dm/sys/block", 0755, true); mkdir("$dm/cmd", 0755, true); mkdir("$dm/var/local/emhttp", 0755, true);
+symlink('..' . substr($real, 4), "$dm/sys/block/sdk");
+file_put_contents("$dm/sys/block/sdk/size", "1875385008\n"); mkdir("$dm/sys/block/sdk/device"); file_put_contents("$dm/sys/block/sdk/device/model", "SSD 870\n");
+file_put_contents("$dm/var/local/emhttp/disks.ini", "[\"cache\"]\nname=\"cache\"\ndevice=\"sdk\"\nid=\"SSD_870_S1\"\ntype=\"Cache\"\n");
+file_put_contents("$dm/cmd/lsblk.json", '{"blockdevices":[{"kname":"sdk","serial":"S1","children":[{"kname":"sdk1"}]}]}');
+putenv("DRIVEMAP_ROOT=$dm");
+putenv("LK_DRIVEMAP=$here/kit/runtime/drivemap/DriveMap.php");
 require "$here/src/usr/local/emhttp/plugins/unraid-lookout/include/lookout.php";
 $fail = 0;
 function t(string $name, bool $ok, string $why = ''): void { global $fail; echo $ok ? "ok   $name\n" : "FAIL $name $why\n"; if (!$ok) $fail = 1; }
@@ -97,6 +106,11 @@ $f = lk_read_json(lk_findings_file())['findings'] ?? [];
 $one = array_values(array_filter($f, fn($x) => $x['rule_id'] === 'btrfs-dev-missing'));
 t('previous log: one finding with the count and its source', count($one) === 1 && $one[0]['repeat_count'] === 2 && $one[0]['log_source'] === 'syslog (previous boot)');
 t('previous log: only once per boot', lk_read_previous($compiled, $cfg) === 0);
+
+[$d] = lk_merge_hits(['findings' => []], [[['id' => 'ata', 'severity' => 'warning'], 'Nov  7 10:00:00 srv kernel: ata7.00: failed command: READ FPDMA QUEUED', 'syslog', 1000, 1]], 300, 500);
+t('a finding names the drive its line means', ($d['findings'][0]['drives'] ?? []) === [['name' => 'ata7.00', 'label' => 'cache (sdk, SSD 870, serial S1)']], json_encode($d['findings'][0]['drives'] ?? null));
+[$d] = lk_merge_hits(['findings' => []], [[['id' => 'x'], 'Nov  7 10:00:00 srv nginx: worker exited', 'syslog', 1000, 1]], 300, 500);
+t('a finding without a drive name has none', ($d['findings'][0]['drives'] ?? null) === []);
 
 // tailer
 $log = lk_path('/var/log/t.log');

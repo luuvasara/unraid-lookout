@@ -164,6 +164,23 @@ function lk_with_findings(callable $change): array {
   return $d;
 }
 
+/* The drives a log line names, as the kit's drive map knows them: a line that says only ata7, sdk1 or devid 2 gets the
+ * slot, model and serial beside it. [['name' => as written, 'label' => 'cache (sdk, model, serial X)'], ...]. Read when a
+ * finding is made, so it names the drive that had the name then. Empty when the package has no drive map. */
+function lk_drives(string $line): array {
+  static $ready = null, $read = 0;
+  if ($ready === null) {
+    $lib = getenv('LK_DRIVEMAP') ?: __DIR__ . '/../kit/DriveMap.php';
+    $ready = is_file($lib) && (require_once $lib) && class_exists('DriveMap');
+  }
+  if (!$ready) return [];
+  $map = DriveMap::shared();
+  if (time() - $read > 60) { $map->refresh(); $read = time(); }   // a daemon runs for weeks; drives come and go
+  $out = [];
+  foreach ($map->scan($line) as $h) $out[] = ['name' => $h['name'], 'label' => DriveMap::label($h['drive'])];
+  return $out;
+}
+
 /* $hits: [[rule, line, source, epoch, count], ...]. The same message inside the dedup window counts on its finding. So
  * does a flood: past LK_FLOOD_SIGNATURES different messages of one rule from one source in the window, they fold into
  * the newest finding of that rule. Returns [data, the rules that got a new finding]. */
@@ -193,7 +210,7 @@ function lk_merge_hits(array $d, array $hits, int $window, int $max): array {
       'name' => $r['name'] ?? 'Unknown', 'description' => $r['description'] ?? '', 'recommendation' => $r['recommendation'] ?? '',
       'setting_path' => $r['setting_path'] ?? '', 'config_file' => $r['config_file'] ?? '',
       'log_source' => $source, 'log_line' => substr($line, 0, LK_MAX_LINE), 'repeat_count' => $count,
-      'acknowledged' => false, 'dedup_key' => $key,
+      'acknowledged' => false, 'dedup_key' => $key, 'drives' => lk_drives($line),
     ];
     $new[$r['id']] = $r;
   }

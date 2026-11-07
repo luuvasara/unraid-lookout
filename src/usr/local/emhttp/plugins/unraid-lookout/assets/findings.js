@@ -105,6 +105,12 @@
                 rec.appendChild(document.createTextNode(f.recommendation));
                 tdName.appendChild(rec);
             }
+            (f.drives || []).forEach(function(d) {
+                var dr = makeEl('div', 'lk-drive');
+                dr.appendChild(makeEl('span', 'lk-rec-label', 'Drive: '));
+                dr.appendChild(document.createTextNode(d.name + ' is ' + d.label));
+                tdName.appendChild(dr);
+            });
             var where = [f.category, f.setting_path, f.config_file].filter(Boolean).join(' · ');
             if (where) tdName.appendChild(makeEl('div', 'lk-setting', where));
             tr.appendChild(tdName);

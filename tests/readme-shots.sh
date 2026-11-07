@@ -13,6 +13,7 @@ W=$HERE/tests/.work/readme; rm -rf "$W"; mkdir -p "$W"
 FX=$W/fx; mkdir -p "$FX/var/local/emhttp/plugins/$NAME" "$FX/boot/config/plugins/$NAME" "$FX/usr/local/share/$NAME"
 cp "$HERE/src/usr/local/share/$NAME/rules.json" "$FX/usr/local/share/$NAME/"
 # findings: the rule's own text, with the sample line from tests/samples.txt
+# shellcheck disable=SC2016  # PHP code: the $ are for PHP, not the shell
 php -r '
 $rules = []; foreach (json_decode(file_get_contents($argv[1]), true)["rules"] as $r) $rules[$r["id"]] = $r;
 $lines = []; foreach (file($argv[2], FILE_IGNORE_NEW_LINES) as $l) { $p = explode("\t", $l, 3); if (count($p) == 3) $lines[$p[0]] = $p[2]; }
