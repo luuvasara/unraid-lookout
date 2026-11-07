@@ -19,8 +19,11 @@ function drivemap_answer(string $action, array $in): array {
       return ['ok' => true, 'name' => $name, 'drive' => count($all) === 1 ? $all[0] : null, 'matches' => count($all),
               'label' => count($all) === 1 ? DriveMap::label($all[0]) : ''];
     case 'scan':
-      $hits = array_map(function ($h) { return $h + ['label' => DriveMap::label($h['drive'])]; }, $map->scan(substr((string)($in['text'] ?? ''), 0, 8192)));
-      return ['ok' => true, 'hits' => $hits];
+      // one word is a name someone typed: every drive it can mean (nvme3 can be a slot and a controller); more is log text
+      $text = trim(substr((string)($in['text'] ?? ''), 0, 8192));
+      $hits = preg_match('/^\S+$/', $text) ? array_map(function ($d) use ($text) { return ['name' => $text, 'drive' => $d]; }, $map->lookupAll($text)) : $map->scan($text);
+      if (!$hits && preg_match('/^\S+$/', $text)) $hits = $map->scan($text);
+      return ['ok' => true, 'hits' => array_map(function ($h) { return $h + ['label' => DriveMap::label($h['drive'])]; }, $hits)];
   }
   return ['ok' => false, 'error' => 'Unknown action'];
 }

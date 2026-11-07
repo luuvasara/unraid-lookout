@@ -7,7 +7,7 @@
   <!ENTITY pluginURL "&gitURL;/&name;.plg">
   <!ENTITY pkg       "&name;-&version;-x86_64-1.txz">
   <!ENTITY pkgURL    "&gitURL;/packages/&pkg;">
-  <!ENTITY md5       "43a0f75e1a68e07c12d85042c5efd50a">
+  <!ENTITY md5       "e1353e641e49bb8d423c5fadfe7037d5">
 ]>
 <!-- A rule database of known Unraid log errors, each with what it means and what to do, and a small daemon that checks
      the logs against it.

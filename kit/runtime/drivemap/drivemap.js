@@ -26,9 +26,9 @@
       out.appendChild(p);
       return p;
     }
-    function mark(key) {
+    function mark(keys) {
       root.querySelectorAll('tr.dm-hit').forEach(function (r) { r.classList.remove('dm-hit'); });
-      root.querySelectorAll('tr[data-dm-key]').forEach(function (r) { if (r.dataset.dmKey === key) r.classList.add('dm-hit'); });
+      root.querySelectorAll('tr[data-dm-key]').forEach(function (r) { if (keys.indexOf(r.dataset.dmKey) >= 0) r.classList.add('dm-hit'); });
     }
 
     form.addEventListener('submit', function (e) {
@@ -43,9 +43,9 @@
         .then(function (j) {
           out.textContent = '';
           if (!j.ok) { line(j.error || 'The drive map did not answer.', 'dm-error'); return; }
-          if (!j.hits.length) { line('No drive of this server goes by a name in "' + text + '".', 'dm-none'); mark(''); return; }
+          if (!j.hits.length) { line('No drive of this server goes by a name in "' + text + '".', 'dm-none'); mark([]); return; }
           j.hits.forEach(function (h) { line(h.name + '  →  ' + h.label, 'dm-found'); });
-          mark(j.hits[0].drive.key);
+          mark(j.hits.map(function (h) { return h.drive.key; }));
         })
         .catch(function (err) { out.textContent = ''; line('The drive map did not answer: ' + err.message, 'dm-error'); });
     });
