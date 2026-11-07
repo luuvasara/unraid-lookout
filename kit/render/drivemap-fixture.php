@@ -33,6 +33,7 @@ foreach ([0 => '0000:01:00.0', 1 => '0000:02:00.0', 2 => '0000:05:00.0'] as $i =
 // the pool is called "nvme": its slots are nvme (on controller nvme1) and nvme2 (on nvme0), while controller nvme2 is unassigned
 dmfx_dev($W, 'loop0', '/sys/devices/virtual/block/loop0', ['size' => 100]);
 dmfx_dev($W, 'md1p1', '/sys/devices/virtual/block/md1p1', ['size' => 100]);
+dmfx_dev($W, 'mdb1p1', '/sys/devices/virtual/block/mdb1p1', ['size' => 100]);
 dmfx_dev($W, 'dm-0', '/sys/devices/virtual/block/dm-0', ['dm/name' => 'md3p1']);
 @mkdir("$W/sys/block/dm-0/slaves/md3p1", 0755, true);
 dmfx_put("$W/var/local/emhttp/disks.ini", <<<'INI'

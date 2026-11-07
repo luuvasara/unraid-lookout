@@ -178,7 +178,7 @@ class DriveMap {
       'model' => '', 'serial' => '', 'wwn' => '', 'size' => 0, 'rotational' => null,
       'by_id' => [], 'by_path' => [], // the drive's own links in /dev/disk
       'part_links' => [],     // the links of its partitions: ata-..._SERIAL-part1, by-uuid ids are not here
-      'fs' => '', 'fs_uuid' => '', 'fs_label' => '', 'dev_uuid' => '',   // fs: Unraid's file system of the slot, else what lsblk sees
+      'fs' => '', 'fs_uuid' => '', 'fs_label' => '',   // fs: Unraid's file system of the slot, else what lsblk sees
       'encrypted' => false,
       'btrfs' => null,        // ['fsid' => ..., 'devid' => 2, 'label' => ...]
       'zfs' => null,          // ['pool' => ..., 'guid' => ...]
@@ -194,7 +194,7 @@ class DriveMap {
     $put('kernel', array_merge([$d['device'], $d['ata'], $d['hctl'], $d['scsi_host'], $d['sas_port'], $d['nvme']], $d['partitions'], $d['md'], $d['mapper']));
     if ($d['sas_port'] !== '') $put('kernel', 'end_device-' . substr($d['sas_port'], 5));
     $put('unraid', [$d['slot'], $d['unraid_id']]);
-    $put('id', array_merge([$d['serial'], $d['wwn'], $d['dev_uuid'], $d['fs_uuid']], $d['by_id'], $d['by_path'], $d['part_links']));
+    $put('id', array_merge([$d['serial'], $d['wwn'], $d['fs_uuid']], $d['by_id'], $d['by_path'], $d['part_links']));
     if (preg_match('/^0x(.+)$/', $d['wwn'], $m)) $put('id', $m[1]);
     if ($d['zfs']) $put('id', $d['zfs']['guid']);
     if ($d['btrfs']) $put('id', "btrfs:{$d['btrfs']['fsid']}:{$d['btrfs']['devid']}");
@@ -240,7 +240,7 @@ class DriveMap {
   private function blockDevices(): array {
     $out = [];
     foreach (@scandir($this->path('/sys/block')) ?: [] as $n) {
-      if ($n[0] === '.' || preg_match(self::SKIP, $n) || preg_match('/^(md\d|dm-)/', $n)) continue;
+      if ($n[0] === '.' || preg_match(self::SKIP, $n) || preg_match('/^(md|dm-)/', $n)) continue;   // md and dm sit on drives; they are names of one, not drives
       $out[] = $n;
     }
     return $out;
@@ -273,7 +273,7 @@ class DriveMap {
   }
 
   private function lsblk(): array {
-    $j = json_decode($this->command('lsblk.json', ['lsblk', '-J', '-b', '-o', 'NAME,KNAME,TYPE,SIZE,MODEL,SERIAL,WWN,TRAN,HCTL,FSTYPE,UUID,UUID_SUB,LABEL,PKNAME']), true);
+    $j = json_decode($this->command('lsblk.json', ['lsblk', '-J', '-b', '-o', 'NAME,KNAME,TYPE,SIZE,MODEL,SERIAL,WWN,TRAN,HCTL,FSTYPE,UUID,LABEL,PKNAME']), true);
     $out = [];
     foreach ($j['blockdevices'] ?? [] as $b) $out[$b['kname'] ?? $b['name']] = $b;
     return $out;
@@ -292,7 +292,6 @@ class DriveMap {
     foreach (array_merge([$b], $b['children'] ?? []) as $c) {
       if (empty($c['fstype'])) continue;
       $d['fs'] = $c['fstype']; $d['fs_uuid'] = (string)($c['uuid'] ?? ''); $d['fs_label'] = (string)($c['label'] ?? '');
-      $d['dev_uuid'] = (string)($c['uuid_sub'] ?? ($c['uuid-sub'] ?? ''));
       if ($c['fstype'] === 'crypto_LUKS') $d['encrypted'] = true;
       break;
     }
