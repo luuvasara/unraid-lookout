@@ -8,5 +8,5 @@
 .dm .dm-error { font-weight: bold; }
 .dm .dm-table td { vertical-align: top; }
 .dm .dm-names td { font-family: monospace; font-size: 0.9em; word-break: break-all; }
-.dm tr.dm-hit td { outline: 2px solid currentColor; outline-offset: -2px; }
+.dm tr.dm-hit { outline: 2px solid currentColor; outline-offset: -2px; }
 .dm .dm-more { margin: 0; padding: 2px 8px; }
