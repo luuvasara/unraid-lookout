@@ -26,6 +26,10 @@ while IFS= read -r -d '' f; do
   case $f in *.page) php -r '[$h] = explode("\n---\n", file_get_contents($argv[1]), 2); exit(parse_ini_string($h) === false ? 1 : 0);' "$f" && ok "page header: ${f##*/}" || bad "page header $f" ;; esac
   out=$(php -d short_open_tag=1 -l "$f" 2>&1) && ok "php -l ${f#"$HERE"/}" || bad "php -l $f: $out"
 done < <(find "$HERE/src" "$HERE/tests" -path '*/.work' -prune -o \( -name '*.php' -o -name '*.page' \) -print0)
+# Unraid evaluates the tabs of a page in its layout's scope: a page must not set the layout's variables (bin/page-scope.php)
+mapfile -d '' PAGES < <(find "$HERE/src" "$KIT/runtime" \( -name '*.page' -o -name '*.page.in' \) -print0)
+if out=$(php "$KIT/bin/page-scope.php" "${PAGES[@]}" 2>&1); then ok "pages keep out of the layout's variables: ${#PAGES[@]} pages"
+else bad "pages set variables of Unraid's page layout (the tabs then render blank); use prefixed names:"; echo "$out"; fi
 while IFS= read -r f; do
   case $(sed -n 1p "$f") in '#!'*php*) out=$(php -l "$f" 2>&1) && ok "php -l ${f#"$HERE"/}" || bad "php -l $f: $out" ;; esac
 done < <(find "$HERE/src" -type f ! -name '*.js' ! -name '*.css' ! -name '*.json' ! -name '*.png' ! -name '*.page' ! -name '*.php')

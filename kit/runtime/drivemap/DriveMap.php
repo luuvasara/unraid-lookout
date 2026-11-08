@@ -25,7 +25,7 @@
 if (!class_exists('DriveMap')) {
 
 class DriveMap {
-  const VERSION = '2026.11.07';
+  const VERSION = '2026.11.08';
   const CACHE_SECONDS = 30;
   const SKIP = '/^(loop|ram|zram|nbd|sr|fd)\d/';
 
@@ -175,6 +175,8 @@ class DriveMap {
       'nvme' => '',           // nvme0, the controller
       'usb' => '',            // 2-2, the USB port path
       'pci' => '',            // 0000:00:17.0, the controller's PCI address
+      'pci_path' => [],       // every PCI address from the root port down to the controller (bridges, switch ports)
+      'port_no' => null,      // the drive's port on its SATA/AHCI controller, counted from 1 (ata port_no)
       'model' => '', 'serial' => '', 'wwn' => '', 'size' => 0, 'rotational' => null,
       'by_id' => [], 'by_path' => [], // the drive's own links in /dev/disk
       'part_links' => [],     // the links of its partitions: ata-..._SERIAL-part1, by-uuid ids are not here
@@ -256,7 +258,8 @@ class DriveMap {
     if (preg_match('#/(port-\d+:\d+)/#', $p, $m)) $d['sas_port'] = $m[1];
     if (preg_match('#/nvme/(nvme\d+)/#', $p, $m)) $d['nvme'] = $m[1];
     if (preg_match('#/usb\d+/(?:[\d.-]+/)*?(\d+-[\d.]+)/\d+-[\d.]+:\d#', $p, $m)) $d['usb'] = $m[1];
-    if (preg_match_all('#/([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f])/#', $p, $m)) $d['pci'] = end($m[1]);
+    if (preg_match_all('#/([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f])(?=/)#', $p, $m)) { $d['pci'] = end($m[1]); $d['pci_path'] = $m[1]; }
+    if ($d['ata'] !== '') { $n = $this->read("/sys/class/ata_port/{$d['ata']}/port_no"); if (ctype_digit($n)) $d['port_no'] = (int)$n; }
     $d['transport'] = $d['nvme'] !== '' ? 'nvme' : ($d['usb'] !== '' ? 'usb' : ($d['ata'] !== '' ? 'sata' : ($d['sas_port'] !== '' ? 'sas' : (strpos($p, '/virtio') !== false ? 'virtio' : ($d['hctl'] !== '' ? 'scsi' : '')))));
     $d['model'] = $this->read("/sys/block/$kname/device/model");
     $d['serial'] = $this->read("/sys/block/$kname/device/serial");

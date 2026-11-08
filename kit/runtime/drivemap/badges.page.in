@@ -1,0 +1,16 @@
+Menu="Buttons"
+Link="nav-user"
+---
+<?php
+/* Bay labels on the Main page: made by the build from the plugin kit. A Menu="Buttons" page with Link= is evaluated on every
+ * webGui page and draws no button (the hook Unraid's own plugin helpers use, dynamix.plugin.manager/PluginHelpers.page). On the
+ * Main page only, and while MAIN_BADGES is not "no", it loads a script that asks kit/enclosures.php (POST, read-only) which bay
+ * each drive is in and puts the bay after the drive's name. Nothing is written. */
+$encb_slug = '@@NAME@@';
+$encb_cfg = @parse_ini_file("/boot/config/plugins/$encb_slug/$encb_slug.cfg") ?: [];
+if (($task ?? '') === 'Main' && ($encb_cfg['MAIN_BADGES'] ?? 'yes') !== 'no'):
+  $encb_v = substr((string)@md5_file(($docroot ?? '/usr/local/emhttp') . "/plugins/$encb_slug/kit/enclosure-badges.js"), 0, 10);
+?>
+<style>.enc-bay-badge{display:inline-block;margin-left:.6rem;padding:0 .5rem;border:1px solid currentColor;border-radius:3px;font-size:1.1rem;line-height:1.5;font-weight:bold;white-space:nowrap;vertical-align:baseline}</style>
+<script src="/plugins/<?=$encb_slug?>/kit/enclosure-badges.js?v=<?=$encb_v?>" data-endpoint="/plugins/<?=$encb_slug?>/kit/enclosures.php"></script>
+<?php endif; ?>

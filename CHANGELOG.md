@@ -2,6 +2,9 @@
 
 Copied by the build from the <CHANGES> block of unraid-lookout.plg; edit the .plg, not this file.
 
+## 2026.11.08a
+- Drives tab: a drive behind more than one PCIe bridge now names its controller, not a bridge in between.
+
 ## 2026.11.07
 - A finding whose log line names a drive by a kernel name, a port or a file system id (ata7, sdk1, nvme2, 7:0:2:0, btrfs devid 2) now says which drive that is: its Unraid slot, model and serial.
 - New Drives tab: every drive with all the names it goes by, and a box that finds the drive a name or a pasted log line means.

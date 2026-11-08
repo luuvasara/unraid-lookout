@@ -10,5 +10,7 @@
 .kit-about-list code { font-family: bitstream, monospace; }
 .kit-about-old { margin-top: 10px; }
 .kit-about-old summary { cursor: pointer; }
-.kit-about-more { margin-top: 16px; opacity: 0.8; }
+.kit-about-more { margin-top: 16px; }
 .kit-about-legal code { font-family: bitstream, monospace; overflow-wrap: anywhere; }
+/* links take the text colour and an underline: the stock link colour is below 4.5:1 on some themes (black 3.4:1, white 4.49:1) */
+.kit-about a { color: inherit; text-decoration: underline; }

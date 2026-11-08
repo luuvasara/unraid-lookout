@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
   <!ENTITY name      "unraid-lookout">
   <!ENTITY author    "Lookout project">
-  <!ENTITY version   "2026.11.07">
+  <!ENTITY version   "2026.11.08a">
   <!ENTITY gitURL    "https://raw.githubusercontent.com/luuvasara/unraid-lookout/main">
   <!ENTITY pluginURL "&gitURL;/&name;.plg">
   <!ENTITY pkg       "&name;-&version;-x86_64-1.txz">
   <!ENTITY pkgURL    "&gitURL;/packages/&pkg;">
-  <!ENTITY md5       "ce06d1af8a8138435db4bb1e9a90810c">
+  <!ENTITY md5       "08c7fe76827bad9fb6f8fda918ee6b43">
 ]>
 <!-- A rule database of known Unraid log errors, each with what it means and what to do, and a small daemon that checks
      the logs against it.
@@ -17,6 +17,9 @@
         launch="Settings/Lookout" pluginURL="&pluginURL;" support="https://github.com/luuvasara/unraid-lookout/issues">
 
 <CHANGES>
+###2026.11.08a
+- Drives tab: a drive behind more than one PCIe bridge now names its controller, not a bridge in between.
+
 ###2026.11.07
 - A finding whose log line names a drive by a kernel name, a port or a file system id (ata7, sdk1, nvme2, 7:0:2:0, btrfs devid 2) now says which drive that is: its Unraid slot, model and serial.
 - New Drives tab: every drive with all the names it goes by, and a box that finds the drive a name or a pasted log line means.

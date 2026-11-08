@@ -11,7 +11,10 @@ The shared build, test and About tab of these Unraid plugins. A plugin repositor
 | `bin/changes-from-plg.sh` | The `.plg`'s `<CHANGES>` as plain text, the one source of the release notes |
 | `runtime/` | Goes into the package: About tab, install message, changes parser |
 | `runtime/drivemap/` | Goes into the package: the drive map library (`DriveMap.php`), its endpoint, and the Drives tab when `DRIVEMAP=yes` |
-| `render/` | Pages rendered with Unraid's real stylesheets in headless Chrome, on a workstation |
+| `runtime/drivemap/Enclosure.php`, `enclosures/` | Goes into the package: enclosure profiles (which bay a drive sits in, from its PCI path and port; the card's PCIe links; the confirmed cabling) and the library that reads them |
+| `runtime/drivemap/DriveState.php`, `Locate.php`, `EnclosureView.php` | Goes into the package: each drive's state as Unraid last read it (no drive is woken), Locate (a read-only O_DIRECT read that flashes a drive's light), and the data of the Enclosures tab |
+| `runtime/drivemap/enclosures.*`, `badges.page.in`, `enclosure-badges.js` | Goes into the package when `ENCLOSURES=yes`: the Enclosures tab (front view, bays, Locate, cabling, links) and bay labels on the Main page |
+| `render/` | Pages rendered with Unraid's real stylesheets in headless Chrome, on a workstation; made-up servers for them (`drivemap-fixture.php`, `enclosure-fixture.php`, `enclosure-state-fixture.php`) |
 | `tests/kit-test.sh` | Builds a throwaway plugin and checks the result |
 | `docs/STANDARD.md` | What a plugin of this family has to do |
 

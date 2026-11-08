@@ -13,7 +13,7 @@ HERE=${PLUGIN_ROOT:-$(cd "$KIT/.." && pwd)}
 : "${NAME:?plugin.conf: NAME}" "${TITLE:?plugin.conf: TITLE}" "${SUMMARY:?plugin.conf: SUMMARY}" "${PARENT:?plugin.conf: PARENT}"
 : "${ABOUT_ORDER:?plugin.conf: ABOUT_ORDER}" "${REPO:?plugin.conf: REPO}"
 EXEC=${EXEC:-}; SUPPORT=${SUPPORT:-$REPO/issues}; MENU_EXTRA=${MENU_EXTRA:-}
-DRIVEMAP=${DRIVEMAP:-no}; DRIVEMAP_ORDER=${DRIVEMAP_ORDER:-}
+DRIVEMAP=${DRIVEMAP:-no}; DRIVEMAP_ORDER=${DRIVEMAP_ORDER:-}; ENCLOSURES=${ENCLOSURES:-no}; ENCLOSURES_ORDER=${ENCLOSURES_ORDER:-}; ENCLOSURE_BADGES=${ENCLOSURE_BADGES:-no}
 AUTHOR=${AUTHOR:-$TITLE project}
 MORE=${MORE:-https://github.com/search?q=owner%3Aluuvasara+unraid&type=repositories}
 MORE_LABEL=${MORE_LABEL:-our Unraid plugins on GitHub}
@@ -45,14 +45,31 @@ SUBST=(-e "s|@@NAME@@|$NAME|g" -e "s|@@TITLE@@|$TITLE|g" -e "s|@@SUMMARY@@|$SUMM
        -e "s|@@MENU@@|$PARENT:$ABOUT_ORDER${MENU_EXTRA:+ $MENU_EXTRA}|g" -e "s|@@REPO@@|$REPO|g" -e "s|@@SUPPORT@@|$SUPPORT|g" -e "s|@@AUTHOR@@|$AUTHOR|g" -e "s|@@MORE@@|${MORE//&/\\&}|g" -e "s|@@MORE_LABEL@@|$MORE_LABEL|g")
 sed "${SUBST[@]}" "$KIT/runtime/about.page.in" >"$ST/$P/${PARENT}About.page"
 sed -i "s|@@TITLE@@|$TITLE|g" "$ST/$P/kit/install-notes.sh"
-# the drive map: the library always, for any script of the plugin; the endpoint and the Drives tab when asked
-cp "$KIT/runtime/drivemap/DriveMap.php" "$ST/$P/kit/"
+# the drive map and the enclosure profiles: the libraries always, for any script of the plugin; the endpoint and the Drives tab when asked
+cp "$KIT/runtime/drivemap/DriveMap.php" "$KIT/runtime/drivemap/Enclosure.php" "$KIT/runtime/drivemap/DriveState.php" \
+   "$KIT/runtime/drivemap/Locate.php" "$KIT/runtime/drivemap/EnclosureView.php" "$ST/$P/kit/"
+mkdir -p "$ST/$P/kit/enclosures"; cp "$KIT"/runtime/drivemap/enclosures/*.json "$ST/$P/kit/enclosures/"
 case $DRIVEMAP in
   yes) [ -n "$DRIVEMAP_ORDER" ] || { echo "FATAL: plugin.conf DRIVEMAP=yes needs DRIVEMAP_ORDER, the tab position"; exit 1; }
        cp "$KIT/runtime/drivemap/drivemap.php" "$KIT/runtime/drivemap/drivemap.js" "$KIT/runtime/drivemap/drivemap.css" "$ST/$P/kit/"
        sed "${SUBST[@]}" -e "s|@@DRIVEMAP_ORDER@@|$DRIVEMAP_ORDER|g" "$KIT/runtime/drivemap/drives.page.in" >"$ST/$P/${PARENT}Drives.page" ;;
   no) ;;
   *) echo "FATAL: plugin.conf DRIVEMAP is yes or no, not $DRIVEMAP"; exit 1 ;;
+esac
+# the Enclosures tab (front view, bay table, Locate, cabling, PCIe links); the bay labels on the Main page; both use the endpoint
+case $ENCLOSURE_BADGES in yes|no) ;; *) echo "FATAL: plugin.conf ENCLOSURE_BADGES is yes or no, not $ENCLOSURE_BADGES"; exit 1 ;; esac
+if [ "$ENCLOSURES" = yes ] || [ "$ENCLOSURE_BADGES" = yes ]; then
+  cp "$KIT/runtime/drivemap/enclosures.php" "$KIT/runtime/drivemap/enclosures.js" "$KIT/runtime/drivemap/enclosures.css" "$ST/$P/kit/"
+fi
+if [ "$ENCLOSURE_BADGES" = yes ]; then
+  cp "$KIT/runtime/drivemap/enclosure-badges.js" "$ST/$P/kit/"
+  sed "${SUBST[@]}" "$KIT/runtime/drivemap/badges.page.in" >"$ST/$P/${PARENT}Badges.page"
+fi
+case $ENCLOSURES in
+  yes) [ -n "$ENCLOSURES_ORDER" ] || { echo "FATAL: plugin.conf ENCLOSURES=yes needs ENCLOSURES_ORDER, the tab position"; exit 1; }
+       sed "${SUBST[@]}" -e "s|@@ENCLOSURES_ORDER@@|$ENCLOSURES_ORDER|g" -e "s|@@ENCLOSURE_BADGES@@|$ENCLOSURE_BADGES|g" "$KIT/runtime/drivemap/enclosures.page.in" >"$ST/$P/${PARENT}Enclosures.page" ;;
+  no) ;;
+  *) echo "FATAL: plugin.conf ENCLOSURES is yes or no, not $ENCLOSURES"; exit 1 ;;
 esac
 find "$ST" -type d -exec chmod 755 {} +
 find "$ST" -type f -exec chmod 644 {} +

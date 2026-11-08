@@ -1,0 +1,33 @@
+/* Enclosures tab. Unraid's own table, form and text-colour classes; nothing here sets a text or page colour (borders use
+ * currentColor), so all four themes work. Spacing on a 4 px grid. */
+.enc .enc-p { max-width: 62em; margin: 4px 0 12px; text-align: left; }
+.enc .enc-sub { margin-left: 16px; font-weight: normal; }
+.enc .enc-cap { caption-side: top; text-align: left; font-weight: bold; padding: 8px 0 4px; }
+.enc .enc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.enc .enc-front { margin: 8px 0 16px; max-width: 72em; }
+.enc .enc-chassis { border: 2px solid currentColor; border-radius: 4px; padding: 8px; display: grid; gap: 8px; }
+.enc .enc-row { display: grid; grid-template-columns: repeat(var(--enc-cols, 8), minmax(6.5em, 1fr)); gap: 4px; list-style: none; margin: 0; padding: 0; }
+.enc .enc-bay { display: flex; flex-direction: column; gap: 2px; min-height: 6em; margin: 0; padding: 4px 8px; border: 1px solid currentColor; border-radius: 2px; font-size: 0.9em; line-height: 1.5; }
+.enc .enc-bay.enc-empty { border-style: dashed; }
+.enc .enc-bay:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.enc .enc-bay.enc-locating { outline: 3px solid currentColor; outline-offset: 2px; }
+.enc .enc-bay.enc-disabled, .enc .enc-bay.enc-missing, .enc .enc-bay.enc-invalid { border-width: 3px; }
+.enc .enc-bay-name { font-weight: bold; }
+.enc .enc-bay-dev, .enc .enc-bay-slot, .enc .enc-bay-temp, .enc .enc-bay-empty { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.enc .enc-bay-empty { font-style: italic; }
+.enc .enc-scroll { overflow-x: auto; margin: 0 0 8px; }
+.enc table.enc-t { width: 100%; margin: 0; }
+.enc table.enc-t th[scope=row] { text-align: left; font-weight: bold; }
+.enc table.enc-t td, .enc table.enc-t th { vertical-align: top; }
+.enc table.enc-t td.enc-act { white-space: nowrap; text-align: right; }
+.enc table.enc-t td.enc-act input { margin: 0; padding: 2px 8px; }
+.enc .enc-msg { min-height: 1.5em; margin: 4px 0 16px; max-width: 62em; }
+.enc .enc-bad { font-weight: bold; }
+.enc fieldset { border: 1px solid currentColor; border-radius: 4px; padding: 8px 16px; margin: 8px 0 16px; max-width: 62em; }
+.enc legend { font-weight: bold; padding: 0 4px; }
+.enc .enc-field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0; }
+.enc .enc-field label { flex: 0 0 18em; margin: 0; }
+.enc .enc-field select, .enc .enc-field input { margin: 0; width: auto; min-width: 12em; flex: 0 1 auto; }
+.enc .enc-notes { margin: 0 0 16px; max-width: 62em; }
+.enc .enc-notes summary { cursor: pointer; font-weight: bold; }
+.enc .enc-notes li { margin: 4px 0; }
