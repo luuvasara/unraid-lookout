@@ -2,6 +2,14 @@
 
 Copied by the build from the <CHANGES> block of unraid-lookout.plg; edit the .plg, not this file.
 
+## 2026.11.12
+- Log lines are cleaned before they are checked, stored or shown: colour codes and other terminal escape sequences, control characters and text direction overrides are taken out, and a line is cut at 8 KB.
+- A log line of several megabytes without a line end no longer stops Lookout from reading the lines after it.
+- `lookout findings` in a terminal prints no escape sequences, also from findings stored by an older version.
+- Custom rules are checked field by field. A rule with a wrong type, an id other than letters, digits and . _ : -, a pattern over 1000 characters, or a pattern that is very slow on long lines is skipped and listed by `lookout check-rules` with the reason, instead of stopping the daemon. A custom-rules.json over 1 MB is not read.
+- Settings with a wrong type fall back to the default instead of stopping the page or the daemon.
+- Notifications carry no line breaks, control characters or angle brackets, and are kept short: Unraid stores them one setting per line.
+
 ## 2026.11.08a
 - Drives tab: a drive behind more than one PCIe bridge now names its controller, not a bridge in between.
 

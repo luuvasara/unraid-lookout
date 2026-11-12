@@ -12,6 +12,12 @@ const LK_FLOOD_SIGNATURES = 5;   // different messages of one rule from one sour
 const LK_MAX_PREVIOUS_BYTES = 50000000;
 const LK_MAX_LINE = 500;
 const LK_MAX_READ = 4000000;      // per log per poll: a large log at the first start is read in steps
+const LK_MAX_MATCH = 8192;        // bytes of a log line the rules see; syslog's own limit is 8 KB, longer is not a real message
+const LK_MAX_HELD = 65536;        // a line still without its newline past this is cut there, the rest of it skipped
+const LK_MAX_PATTERN = 1000;      // longest pattern a rule may have; the shipped ones stay under 200
+const LK_MAX_JSON = 16000000;     // findings.json at 5000 findings stays well under this
+const LK_MAX_CUSTOM_RULES = 1000000;
+const LK_SOURCES = ['syslog', 'docker', 'libvirt'];
 
 function lk_path(string $p): string { return (getenv('LK_ROOT') ?: '') . $p; }
 function lk_flash(string $f = ''): string { return lk_path('/boot/config/plugins/' . LK_PLUGIN . ($f !== '' ? "/$f" : '')); }
@@ -26,10 +32,30 @@ function lk_log(string $msg): void {
   if (@file_put_contents($f, $line, FILE_APPEND) === false) fwrite(STDERR, $line);
 }
 
-function lk_read_json(string $f): ?array {
-  if (!is_file($f)) return null;
+/* A file larger than $max is not read: no file of ours gets near it, so it is not ours. */
+function lk_read_json(string $f, int $max = LK_MAX_JSON): ?array {
+  if (!is_file($f) || (int)@filesize($f) > $max) return null;
   $d = json_decode((string)@file_get_contents($f), true);
   return is_array($d) ? $d : null;
+}
+
+/* Text from a log, a rule or a file name, made safe to store, show and print: escape sequences (colours, terminal titles,
+ * clipboard writes), other control characters, C1 controls and bidi overrides are taken out, a tab becomes a space, and
+ * the result is valid UTF-8 of at most $max bytes. Anyone who can make a program write a log line controls that text. */
+function lk_clean(string $s, int $max = LK_MAX_MATCH): string {
+  if (strlen($s) > $max * 2) $s = substr($s, 0, $max * 2);
+  $s = preg_replace('/\x1b(?:\[[0-?]*[ -\/]*[@-~]?|\][^\x07\x1b]*(?:\x07|\x1b\\\\)?|[PX^_][^\x1b]*(?:\x1b\\\\)?|[ -\/]*[0-~]?)/', '', $s) ?? '';
+  $s = str_replace("\t", ' ', $s);
+  $s = preg_replace('/[\x00-\x1f\x7f]|\xc2[\x80-\x9f]|\xe2\x80[\x8e\x8f\xaa-\xae]|\xe2\x81[\xa6-\xa9]/', '', $s) ?? '';
+  if (preg_match('//u', $s) !== 1) $s = function_exists('mb_scrub') ? mb_scrub($s, 'UTF-8') : (preg_replace('/[\x80-\xff]/', '?', $s) ?? '');
+  return lk_cut($s, $max);
+}
+
+/* At most $max bytes, never half a UTF-8 character. */
+function lk_cut(string $s, int $max): string {
+  if (strlen($s) <= $max) return $s;
+  $s = substr($s, 0, $max);
+  return preg_match('//u', $s) === 1 ? $s : (preg_replace('/[\xc0-\xff][\x80-\xbf]*$/', '', $s) ?? '');
 }
 
 function lk_write_atomic(string $f, string $data): bool {
@@ -53,8 +79,8 @@ function lk_clean_config(array $in): array {
   foreach (['max_findings' => [10, 5000], 'dedup_window' => [0, 86400], 'notify_cooldown' => [300, 604800]] as $k => [$lo, $hi]) {
     if (isset($in[$k]) && is_numeric($in[$k])) $out[$k] = max($lo, min($hi, (int)$in[$k]));
   }
-  if (isset($in['severity_filter']) && isset(LK_RANK[$in['severity_filter']])) $out['severity_filter'] = $in['severity_filter'];
-  if (isset($in['notify']) && in_array($in['notify'], ['off', 'critical', 'warning'], true)) $out['notify'] = $in['notify'];
+  if (is_string($in['severity_filter'] ?? null) && isset(LK_RANK[$in['severity_filter']])) $out['severity_filter'] = $in['severity_filter'];
+  if (is_string($in['notify'] ?? null) && in_array($in['notify'], ['off', 'critical', 'warning'], true)) $out['notify'] = $in['notify'];
   if (array_key_exists('read_previous', $in)) $out['read_previous'] = filter_var($in['read_previous'], FILTER_VALIDATE_BOOLEAN);
   if (isset($in['muted']) && is_array($in['muted'])) {
     $out['muted'] = array_values(array_unique(array_filter($in['muted'], fn($m) => is_string($m) && preg_match('/^[A-Za-z0-9._:-]{1,80}$/', $m) === 1)));
@@ -67,35 +93,85 @@ function lk_clean_config(array $in): array {
  * Rules come only from the package and the flash drive: a pattern runs on every log line as root. */
 function lk_load_rules(): array {
   $rules = []; $seen = [];
-  foreach (array_merge(lk_read_json(lk_shipped_rules())['rules'] ?? [], lk_read_json(lk_flash('custom-rules.json'))['rules'] ?? []) as $r) {
-    if (!is_array($r) || !is_string($r['id'] ?? null) || !is_string($r['pattern'] ?? null) || isset($seen[$r['id']])) continue;
-    $seen[$r['id']] = true;
+  $all = array_merge(lk_read_json(lk_shipped_rules())['rules'] ?? [], lk_read_json(lk_flash('custom-rules.json'), LK_MAX_CUSTOM_RULES)['rules'] ?? []);
+  foreach (is_array($all) ? $all : [] as $i => $r) {
+    $r = lk_check_rule($r, $i);
+    if (!isset($r['_invalid'])) { if (isset($seen[$r['id']])) continue; $seen[$r['id']] = true; }
     $rules[] = $r;
   }
   return $rules;
 }
 
+/* One rule as the file has it, checked field by field: the rule with its text fields as plain strings, or
+ * ['id' => a printable name for it, '_invalid' => why], which lk_compile reports with the rules that do not compile. */
+function lk_check_rule($r, int $i): array {
+  if (!is_array($r)) return ['id' => "#$i", '_invalid' => 'not an object'];
+  $id = $r['id'] ?? null;
+  if (!is_string($id) || preg_match('/^[A-Za-z0-9._:-]{1,80}$/', $id) !== 1) return ['id' => "#$i", '_invalid' => 'id must be 1 to 80 of A-Z a-z 0-9 . _ : -'];
+  foreach (['pattern', 'exclude_pattern'] as $k) {
+    if ($k === 'pattern' || isset($r[$k])) {
+      if (!is_string($r[$k] ?? null) || ($k === 'pattern' && $r[$k] === '') || strlen($r[$k]) > LK_MAX_PATTERN) return ['id' => $id, '_invalid' => "$k must be text of 1 to " . LK_MAX_PATTERN . ' characters'];
+    }
+  }
+  if (isset($r['log_sources']) && (!is_array($r['log_sources']) || array_filter($r['log_sources'], fn($s) => !is_string($s) || !in_array($s, LK_SOURCES, true)))) {
+    return ['id' => $id, '_invalid' => 'log_sources must be a list of ' . implode(', ', LK_SOURCES)];
+  }
+  if (isset($r['severity']) && !(is_string($r['severity']) && isset(LK_RANK[$r['severity']]))) return ['id' => $id, '_invalid' => 'severity must be info, warning or critical'];
+  foreach (['name' => 120, 'category' => 40, 'description' => 2000, 'recommendation' => 2000, 'setting_path' => 200, 'config_file' => 200] as $k => $max) {
+    if (!isset($r[$k])) continue;
+    if (!is_string($r[$k])) return ['id' => $id, '_invalid' => "$k must be text"];
+    $r[$k] = lk_clean($r[$k], $max);
+  }
+  return $r;
+}
+
 function lk_regex(string $pattern): string { return "\x01" . str_replace("\x01", '', $pattern) . "\x01i"; }
 
-/* [compiled rules, ids that do not compile] */
+/* A pattern runs on every log line. One that PCRE gives up on, or that takes long, on these lines would do the same on a
+ * real one, every time: the long runs of one kind of character are what makes nested repeats backtrack. */
+function lk_regex_too_slow(string $re): bool {
+  static $probes = null;
+  if ($probes === null) {
+    $probes = [];
+    foreach (['a', '1', ' ', 'aA1 ', 'a.b/c-', "\xc3\xa4"] as $c) { $run = substr(str_repeat($c, 4096), 0, 4096); $probes[] = $run; $probes[] = "$run!"; $probes[] = "x $run\x01"; }
+  }
+  $t = microtime(true);
+  foreach ($probes as $s) {
+    if (@preg_match($re, $s) === false) return true;
+    if (microtime(true) - $t > 0.05) return true;
+  }
+  return false;
+}
+
+/* [compiled rules, ids that are refused: invalid, not compiling, or too slow] */
 function lk_compile(array $rules): array {
   $ok = []; $bad = [];
   foreach ($rules as $r) {
+    if (isset($r['_invalid'])) { $bad[] = $r['id']; continue; }
     $p = lk_regex($r['pattern']);
-    $x = !empty($r['exclude_pattern']) ? lk_regex($r['exclude_pattern']) : null;
+    $x = ($r['exclude_pattern'] ?? '') !== '' ? lk_regex($r['exclude_pattern']) : null;
     if (@preg_match($p, '') === false || ($x !== null && @preg_match($x, '') === false)) { $bad[] = $r['id']; continue; }
+    if (lk_regex_too_slow($p) || ($x !== null && lk_regex_too_slow($x))) { $bad[] = $r['id']; continue; }
     $ok[] = [$r, $p, $x, $r['log_sources'] ?? []];
   }
   return [$ok, $bad];
 }
 
-/* A VM's own log counts as the source "libvirt" for rules; the finding still names the VM. */
+/* A VM's own log counts as the source "libvirt" for rules; the finding still names the VM. A pattern that PCRE gives up
+ * on (backtrack or stack limit) three times is not run again by this process: it would cost that on every line. */
 function lk_match(array $compiled, string $line, string $source): array {
+  static $errors = [];
   $src = strncmp($source, 'vm:', 3) === 0 ? 'libvirt' : $source;
   $hits = [];
   foreach ($compiled as [$r, $p, $x, $sources]) {
     if ($sources && !in_array($src, $sources, true)) continue;
-    if (preg_match($p, $line) === 1 && ($x === null || preg_match($x, $line) !== 1)) $hits[] = $r;
+    if (($errors[$p] ?? 0) >= 3 || ($x !== null && ($errors[$x] ?? 0) >= 3)) continue;
+    $m = preg_match($p, $line);
+    if ($m === false) { if (($errors[$p] = ($errors[$p] ?? 0) + 1) === 3) lk_log("rule {$r['id']} stopped: " . preg_last_error_msg()); continue; }
+    if ($m !== 1) continue;
+    $e = $x === null ? 0 : preg_match($x, $line);
+    if ($e === false) { if (($errors[$x] = ($errors[$x] ?? 0) + 1) === 3) lk_log("rule {$r['id']} stopped: " . preg_last_error_msg()); continue; }
+    if ($e !== 1) $hits[] = $r;
   }
   return $hits;
 }
@@ -112,14 +188,14 @@ function lk_signature(string $line): string {
 
 /* ---- tailing ---- */
 class LkTailer {
-  private $fh = null; private $ino = null; private string $path; private string $rest = '';
+  private $fh = null; private $ino = null; private string $path; private string $rest = ''; private bool $skip = false;
   public function __construct(string $path, bool $fromEnd = true) { $this->path = $path; $this->open($fromEnd); }
   private function open(bool $fromEnd): void {
     $st = @stat($this->path);
     $fh = $st ? @fopen($this->path, 'r') : false;
     if (!$fh) { $this->fh = null; $this->ino = null; return; }
     if ($fromEnd) fseek($fh, 0, SEEK_END);
-    $this->fh = $fh; $this->ino = $st['ino']; $this->rest = '';
+    $this->fh = $fh; $this->ino = $st['ino']; $this->rest = ''; $this->skip = false;
   }
   /* complete new lines; a line still being written waits for its newline */
   public function lines(): array {
@@ -136,14 +212,29 @@ class LkTailer {
     clearstatcache(true, $this->path);
     return ftell($this->fh) >= (int)@filesize($this->path);
   }
+  /* Lines come out cleaned (lk_clean) and at most LK_MAX_MATCH bytes. A line that grows past LK_MAX_HELD without its
+   * newline is given as far as it got and the rest of it is skipped: held whole, it would fill the read budget of every
+   * poll and the tailer would never reach the lines after it. */
   private function drain(): array {
     $data = $this->rest; $this->rest = '';
     while (!feof($this->fh) && strlen($data) < LK_MAX_READ) { $c = fread($this->fh, 65536); if ($c === '' || $c === false) break; $data .= $c; }
     fseek($this->fh, 0, SEEK_CUR);   // clears PHP's end-of-file state
+    if ($this->skip) {
+      $p = strpos($data, "\n");
+      if ($p === false) return [];
+      $data = substr($data, $p + 1); $this->skip = false;
+    }
     $p = strrpos($data, "\n");
-    if ($p === false) { $this->rest = $data; return []; }
-    $this->rest = substr($data, $p + 1);
-    return array_values(array_filter(explode("\n", substr($data, 0, $p)), fn($l) => trim($l) !== ''));
+    $body = $p === false ? '' : substr($data, 0, $p);
+    $tail = $p === false ? $data : substr($data, $p + 1);
+    $out = [];
+    foreach ($body === '' ? [] : explode("\n", $body) as $l) { $l = lk_clean($l); if (trim($l) !== '') $out[] = $l; }
+    if (strlen($tail) > LK_MAX_HELD) {
+      $l = lk_clean($tail);
+      if (trim($l) !== '') $out[] = $l;
+      $this->skip = true;
+    } else $this->rest = $tail;
+    return $out;
   }
 }
 
@@ -186,7 +277,12 @@ function lk_drives(string $line): array {
  * the newest finding of that rule. Returns [data, the rules that got a new finding]. */
 function lk_merge_hits(array $d, array $hits, int $window, int $max): array {
   $new = [];
+  // what goes into findings.json is plain text whatever the rule or the line held: the page, the shell and the
+  // notification all read it from there
+  $text = fn($v, string $default, int $max) => is_string($v) ? lk_clean($v, $max) : $default;
   foreach ($hits as [$r, $line, $source, $when, $count]) {
+    $source = lk_clean((string)$source, 120);
+    $line = lk_clean((string)$line);
     $key = md5("{$r['id']}:$source:" . lk_signature($line));
     $iso = gmdate('c', $when);
     $sameRule = []; $same = null;
@@ -206,10 +302,12 @@ function lk_merge_hits(array $d, array $hits, int $window, int $max): array {
     $d['findings'][] = [
       'id' => substr(md5("{$r['id']}:$line:$when:" . mt_rand()), 0, 12),
       'timestamp' => $iso, 'last_seen' => $iso, 'rule_id' => $r['id'],
-      'category' => $r['category'] ?? 'unknown', 'severity' => isset(LK_RANK[$r['severity'] ?? '']) ? $r['severity'] : 'info',
-      'name' => $r['name'] ?? 'Unknown', 'description' => $r['description'] ?? '', 'recommendation' => $r['recommendation'] ?? '',
-      'setting_path' => $r['setting_path'] ?? '', 'config_file' => $r['config_file'] ?? '',
-      'log_source' => $source, 'log_line' => substr($line, 0, LK_MAX_LINE), 'repeat_count' => $count,
+      'category' => $text($r['category'] ?? null, 'unknown', 40),
+      'severity' => is_string($r['severity'] ?? null) && isset(LK_RANK[$r['severity']]) ? $r['severity'] : 'info',
+      'name' => $text($r['name'] ?? null, 'Unknown', 120), 'description' => $text($r['description'] ?? null, '', 2000),
+      'recommendation' => $text($r['recommendation'] ?? null, '', 2000),
+      'setting_path' => $text($r['setting_path'] ?? null, '', 200), 'config_file' => $text($r['config_file'] ?? null, '', 200),
+      'log_source' => $source, 'log_line' => lk_cut($line, LK_MAX_LINE), 'repeat_count' => $count,
       'acknowledged' => false, 'dedup_key' => $key, 'drives' => lk_drives($line),
     ];
     $new[$r['id']] = $r;
@@ -221,19 +319,28 @@ function lk_merge_hits(array $d, array $hits, int $window, int $max): array {
 /* ---- notifications: one per rule per cooldown, through Unraid's own notify script ---- */
 function lk_notify_due(array $rule, array $config, array &$sent, int $now): bool {
   if ($config['notify'] === 'off' || in_array($rule['id'], $config['muted'], true)) return false;
-  $rank = LK_RANK[$rule['severity'] ?? 'info'] ?? 0;
+  $rank = is_string($rule['severity'] ?? null) ? (LK_RANK[$rule['severity']] ?? 0) : 0;
   if ($rank < LK_RANK[$config['notify']]) return false;
   if ($now - ($sent[$rule['id']] ?? 0) < $config['notify_cooldown']) return false;
   $sent[$rule['id']] = $now;
   return true;
 }
 
-/* The notification carries the rule's own text, never the log line: that can hold what anyone typed at a login prompt. */
+/* The notification carries the rule's own text, never the log line: that can hold what anyone typed at a login prompt.
+ * It goes as an argument list, no shell. Unraid's notify writes subject and description into an ini file, one key per
+ * line (so no line breaks), shows them in its own page and mails them (so no < or >: a rule's "<poolName>" becomes
+ * "‹poolName›"), and short. */
+function lk_notify_text($s, int $max): string {
+  $s = lk_clean(preg_replace('/[\r\n]+/', ' ', is_string($s) ? $s : '') ?? '', $max * 2);
+  $s = str_replace(['<', '>'], ["\u{2039}", "\u{203A}"], $s);
+  return lk_cut(trim(preg_replace('/ {2,}/', ' ', $s) ?? ''), $max);
+}
+
 function lk_notify(array $rule): bool {
   $bin = getenv('LK_NOTIFY') ?: '/usr/local/emhttp/webGui/scripts/notify';
   $importance = ($rule['severity'] ?? '') === 'critical' ? 'alert' : 'warning';
-  $p = @proc_open([$bin, '-e', 'Lookout', '-s', 'Lookout: ' . ($rule['name'] ?? 'finding'),
-                   '-d', (string)($rule['recommendation'] ?? ''), '-i', $importance, '-l', '/Settings/Lookout'],
+  $p = @proc_open([$bin, '-e', 'Lookout', '-s', lk_notify_text('Lookout: ' . (is_string($rule['name'] ?? null) ? $rule['name'] : 'finding'), 120),
+                   '-d', lk_notify_text($rule['recommendation'] ?? '', 500), '-i', $importance, '-l', '/Settings/Lookout'],
                   [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
   return is_resource($p) && proc_close($p) === 0;
 }
@@ -254,6 +361,15 @@ function lk_flush(array $hits, array $config, bool $notify = true): void {
   if ($changed) lk_write_atomic($f, json_encode($sent));
 }
 
+/* The next line without its newline, at most LK_MAX_HELD bytes of it; the rest of a longer line is skipped. null at the end. */
+function lk_fgets($fh): ?string {
+  $l = fgets($fh, LK_MAX_HELD);
+  if ($l === false) return null;
+  if (substr($l, -1) === "\n") return substr($l, 0, -1);
+  while (($more = fgets($fh, LK_MAX_HELD)) !== false && substr($more, -1) !== "\n");
+  return $l;
+}
+
 /* One read of the log saved at the last shutdown, once per boot: what went wrong before this start.
  * Findings from it name the source "syslog (previous boot)". */
 function lk_read_previous(array $compiled, array $config): int {
@@ -264,10 +380,10 @@ function lk_read_previous(array $compiled, array $config): int {
   $fh = @fopen($f, 'r');
   if (!$fh) return 0;
   $start = max(0, (int)filesize($f) - LK_MAX_PREVIOUS_BYTES);
-  if ($start > 0) { fseek($fh, $start); fgets($fh); }
+  if ($start > 0) { fseek($fh, $start); lk_fgets($fh); }
   $when = (int)filemtime($f); $source = 'syslog (previous boot)'; $hits = []; $n = 0; $min = LK_RANK[$config['severity_filter']];
-  while (($line = fgets($fh)) !== false) {
-    $line = rtrim($line, "\n");
+  while (($line = lk_fgets($fh)) !== null) {
+    $line = lk_clean($line);
     if (trim($line) === '') continue;
     foreach (lk_match($compiled, $line, 'syslog') as $r) {
       if ((LK_RANK[$r['severity'] ?? 'info'] ?? 0) < $min) continue;

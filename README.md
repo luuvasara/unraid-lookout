@@ -71,7 +71,9 @@ Your own rules go in `/boot/config/plugins/unraid-lookout/custom-rules.json`:
 
 `severity` is one level per rule. To let it follow the line, make two rules, as the shipped ones do for corrected and uncorrected errors, with `exclude_pattern` to keep them apart.
 
-`pattern` is a case-insensitive regular expression. An optional `exclude_pattern` drops lines that also match it. `log_sources` is any of `syslog`, `docker`, `libvirt`; without it the rule applies to all. An id that is already in the shipped rules is skipped. Reload Rules on the Findings tab loads them; `lookout check-rules` in a terminal lists rules that do not compile.
+`pattern` is a case-insensitive regular expression. An optional `exclude_pattern` drops lines that also match it. `log_sources` is any of `syslog`, `docker`, `libvirt`; without it the rule applies to all. An id that is already in the shipped rules is skipped. Reload Rules on the Findings tab loads them; `lookout check-rules` in a terminal lists the rules it skips and why: a field of the wrong type, an id other than letters, digits and `. _ : -`, a pattern that does not compile, is longer than 1000 characters or is very slow on long lines. A custom-rules.json over 1 MB is not read.
+
+Log lines are checked, stored and shown without colour codes, other escape sequences and control characters, and at most 8 KB long.
 
 Rules are read only from the package and the flash drive.
 

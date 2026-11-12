@@ -24,13 +24,20 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do [ -f "$W/var/local/emhttp/plugins/unraid-looko
 [ -f "$W/var/local/emhttp/plugins/unraid-lookout/findings.json" ] && ok "what was already in the log is listed at once" || bad "backlog not listed"
 [ ! -s "$W/notify.log" ] && ok "what was already in the log sends no notification" || bad "notified on the backlog"
 echo "$evil" >>"$W/var/log/syslog"
+# hostile text for a second rule (its own notification): shell syntax, quote breaking, markup, an OSC escape
+E=$'\033'; B=$'\007'
+printf '%s\n' "Nov  5 10:00:06 srv kernel: BTRFS: error (device sdc1 ;\$(touch $W/pwned1) \`touch $W/pwned2\` \"'><script>x(1)</script> ${E}]0;t${B} ${E}[31m) in cleanup_transaction:1999: errno=-5 IO failure" >>"$W/var/log/syslog"
 sleep 0.5
 [ -n "$($BIN reload)" ] && sleep 0.3
 $BIN stop >/dev/null; wait "$DPID"
 n=$($BIN findings json | php -r '$d=json_decode(stream_get_contents(STDIN),true); $c=0; foreach($d["findings"] as $f) if($f["rule_id"]==="btrfs-dev-missing") $c+=$f["repeat_count"]; echo $c;')
 [ "$n" = 2 ] && ok "lines from before the start and after it count: $n" || bad "count $n"
-[ "$(wc -l <"$W/notify.log")" = 1 ] && ok "one notification, for the new line only" || bad "notifications: $(cat "$W/notify.log" 2>&1)"
-grep -q 'BTRFS' "$W/notify.log" 2>/dev/null; grep -qF 'onerror' "$W/notify.log" && bad "log text in the notification" || ok "the notification carries no log text"
+[ "$(wc -l <"$W/notify.log")" = 2 ] && ok "one notification per rule, for the new lines only" || bad "notifications: $(cat "$W/notify.log" 2>&1)"
+grep -qE 'onerror|pwned|script|touch|sdc1' "$W/notify.log" && bad "log text in the notification" || ok "the notification carries no log text"
+[ ! -e "$W/pwned1" ] && [ ! -e "$W/pwned2" ] && ok "shell syntax in a log line ran nothing" || bad "a log line ran a command"
+F=$W/var/local/emhttp/plugins/unraid-lookout/findings.json
+grep -q 'pwned1' "$F" && ok "the hostile line is a finding" || bad "hostile line not listed"
+grep -qiE '\\u001b|\\u0007' "$F" && bad "an escape sequence is stored in findings.json" || ok "no escape sequence stored in findings.json"
 grep -qF 'alert' "$W/notify.log" && ok "critical goes out as alert" || bad "importance: $(cat "$W/notify.log")"
 before=$($BIN findings json | md5sum)
 # second start of this boot: from the end, and the cooldown holds

@@ -20,7 +20,7 @@ function lk_sources(array $c): array {
 
 function lk_vm_logs(): array {
   $map = [];
-  foreach (glob(lk_path('/var/log/libvirt/qemu/*.log')) ?: [] as $p) $map['vm:' . basename($p, '.log')] = $p;
+  foreach (glob(lk_path('/var/log/libvirt/qemu/*.log')) ?: [] as $p) $map['vm:' . lk_clean(basename($p, '.log'), 100)] = $p;
   return $map;
 }
 
@@ -44,7 +44,7 @@ function lk_daemon(): int {
   $load = function () use (&$config, &$compiled, &$badRules, &$tailers, $first) {
     $config = lk_config();
     [$compiled, $badRules] = lk_compile(lk_load_rules());
-    if ($badRules) lk_log('rules that do not compile: ' . implode(', ', $badRules));
+    if ($badRules) lk_log('rules refused (invalid, not compiling or too slow; lookout check-rules says why): ' . implode(', ', $badRules));
     $want = lk_sources($config);
     foreach (array_diff_key($tailers, $want) as $k => $_) unset($tailers[$k]);
     foreach ($want as $k => $p) { if (!isset($tailers[$k])) $tailers[$k] = new LkTailer($p, !$first); }
@@ -97,11 +97,15 @@ function lk_cli_findings(string $fmt): int {
   $d = lk_read_json(lk_findings_file());
   if (!$d || empty($d['findings'])) { echo $fmt === 'json' ? "{\"findings\":[],\"total\":0}\n" : "No findings.\n"; return 0; }
   if ($fmt === 'json') { echo json_encode($d, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n"; return 0; }
+  // printed to a terminal: every field goes through lk_clean, also what an older version stored, so a log line cannot
+  // send the terminal escape sequences (title, clipboard, cursor moves that hide text)
+  $c = fn($f, $k, $max = 2000) => lk_clean(is_scalar($f[$k] ?? '') ? (string)($f[$k] ?? '') : '', $max);
   foreach (array_slice($d['findings'], -20) as $f) {
-    printf("[%s] %s %s (source: %s, x%d)%s\n  log: %s\n", strtoupper($f['severity']), substr($f['timestamp'], 0, 19), $f['name'], $f['log_source'],
-           $f['repeat_count'], !empty($f['acknowledged']) ? ' [ACK]' : '', substr($f['log_line'], 0, 120));
-    if ($f['recommendation'] !== '') echo "  fix: {$f['recommendation']}\n";
-    if ($f['setting_path'] !== '') echo "  setting: {$f['setting_path']}\n";
+    if (!is_array($f)) continue;
+    printf("[%s] %s %s (source: %s, x%d)%s\n  log: %s\n", strtoupper($c($f, 'severity', 10)), $c($f, 'timestamp', 19), $c($f, 'name', 120), $c($f, 'log_source', 120),
+           (int)($f['repeat_count'] ?? 1), !empty($f['acknowledged']) ? ' [ACK]' : '', $c($f, 'log_line', 120));
+    if ($c($f, 'recommendation') !== '') echo '  fix: ', $c($f, 'recommendation'), "\n";
+    if ($c($f, 'setting_path') !== '') echo '  setting: ', $c($f, 'setting_path', 200), "\n";
     echo "\n";
   }
   return 0;
@@ -144,8 +148,11 @@ switch ($cmd) {
     echo "Reload requested.\n";
     exit(0);
   case 'check-rules':
-    [$ok, $bad] = lk_compile(lk_load_rules());
+    $rules = lk_load_rules();
+    [$ok, $bad] = lk_compile($rules);
     printf("%d rules compile, %d do not%s\n", count($ok), count($bad), $bad ? ': ' . implode(', ', $bad) : '');
+    foreach ($rules as $r) if (isset($r['_invalid'])) echo "  {$r['id']}: {$r['_invalid']}\n";
+    foreach (array_diff($bad, array_column(array_filter($rules, fn($r) => isset($r['_invalid'])), 'id')) as $id) echo "  $id: the pattern does not compile, or PCRE gives up on it or it is too slow on long lines\n";
     exit($bad ? 1 : 0);
   default: echo $usage; exit(1);
 }

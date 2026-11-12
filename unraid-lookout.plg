@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
   <!ENTITY name      "unraid-lookout">
   <!ENTITY author    "Lookout project">
-  <!ENTITY version   "2026.11.08a">
+  <!ENTITY version   "2026.11.12">
   <!ENTITY gitURL    "https://raw.githubusercontent.com/luuvasara/unraid-lookout/main">
   <!ENTITY pluginURL "&gitURL;/&name;.plg">
   <!ENTITY pkg       "&name;-&version;-x86_64-1.txz">
   <!ENTITY pkgURL    "&gitURL;/packages/&pkg;">
-  <!ENTITY md5       "08c7fe76827bad9fb6f8fda918ee6b43">
+  <!ENTITY md5       "8d67c23777864f0c46aa62f6966a3fbc">
 ]>
 <!-- A rule database of known Unraid log errors, each with what it means and what to do, and a small daemon that checks
      the logs against it.
@@ -17,6 +17,14 @@
         launch="Settings/Lookout" pluginURL="&pluginURL;" support="https://github.com/luuvasara/unraid-lookout/issues">
 
 <CHANGES>
+###2026.11.12
+- Log lines are cleaned before they are checked, stored or shown: colour codes and other terminal escape sequences, control characters and text direction overrides are taken out, and a line is cut at 8 KB.
+- A log line of several megabytes without a line end no longer stops Lookout from reading the lines after it.
+- `lookout findings` in a terminal prints no escape sequences, also from findings stored by an older version.
+- Custom rules are checked field by field. A rule with a wrong type, an id other than letters, digits and . _ : -, a pattern over 1000 characters, or a pattern that is very slow on long lines is skipped and listed by `lookout check-rules` with the reason, instead of stopping the daemon. A custom-rules.json over 1 MB is not read.
+- Settings with a wrong type fall back to the default instead of stopping the page or the daemon.
+- Notifications carry no line breaks, control characters or angle brackets, and are kept short: Unraid stores them one setting per line.
+
 ###2026.11.08a
 - Drives tab: a drive behind more than one PCIe bridge now names its controller, not a bridge in between.
 

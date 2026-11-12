@@ -6,6 +6,8 @@ mkdir -p "$HERE/tests/.work"
 "$HERE/kit/bin/lint.sh" || fail=1
 php "$HERE/tests/unit.php" || fail=1
 bash "$HERE/tests/daemon-test.sh" || fail=1
+php "$HERE/tests/hostile.php" || fail=1
+if node -e 'require("jsdom")' 2>/dev/null; then node "$HERE/tests/dom-test.js" || fail=1; else echo "skip dom-test.js (jsdom not installed)"; fi
 out=$(LK_ROOT=$HERE/src LK_PLUGIN_DIR=$HERE/src/usr/local/emhttp/plugins/unraid-lookout php -q "$HERE/src/usr/local/bin/lookout" check-rules 2>&1)
 if grep -Eq '^[0-9]+ rules compile, 0 do not$' <<<"$out"; then echo "ok   check-rules: $out"; else echo "FAIL check-rules: $out"; fail=1; fi
 I=$HERE/src/usr/local/emhttp/plugins/unraid-lookout/images/lookout.png
