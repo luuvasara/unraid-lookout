@@ -2,6 +2,9 @@
 
 Copied by the build from the <CHANGES> block of unraid-lookout.plg; edit the .plg, not this file.
 
+## 2026.11.21
+- Fix: a request that failed (the session ended, a server error, no answer) showed nothing. Save settings looked the same whether the settings were saved or not, and Start/Stop Daemon, Reload Rules, Ack, Acknowledge All, Clear All and Mute did nothing visible. Each now says what failed and why (example: Reload rules failed: the server answered HTTP 500).
+- Fix: when the server answered with a login page (the session had ended), Ack marked the finding as acknowledged on the page although nothing had changed on the server; Acknowledge All and Clear All had the same flaw. The page now keeps the list as it was and says that the session may have ended.
 ## 2026.11.12
 - Log lines are cleaned before they are checked, stored or shown: colour codes and other terminal escape sequences, control characters and text direction overrides are taken out, and a line is cut at 8 KB.
 - A log line of several megabytes without a line end no longer stops Lookout from reading the lines after it.

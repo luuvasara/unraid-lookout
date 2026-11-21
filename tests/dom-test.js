@@ -37,5 +37,49 @@ setTimeout(() => {
   t('nothing ran', w.__pwned === undefined, String(w.__pwned));
   const opts = [...d.querySelectorAll('#filter-source option, #filter-category option')].map(o => o.textContent);
   t('filter options carry the text as text', opts.includes('vm:' + X) && opts.includes('cat' + X), JSON.stringify(opts));
-  process.exit(fail);
+  failedRequests();
 }, 200);
+
+// A request that fails, or is answered with something else than the endpoint's JSON (a login page after the session
+// ended), must show what failed and why, and must not run the caller's success step.
+function failedRequests() {
+  const dom2 = new JSDOM('<!doctype html><body>' + page + '</body>', { runScripts: 'outside-only', url: 'http://tower.local/Settings/Lookout' });
+  const w2 = dom2.window, d = w2.document;
+  let mode = 'ok';
+  const plain = { id: 'abc123', rule_id: 'rule-a', severity: 'warning', timestamp: '2026-11-12T00:00:00+00:00', name: 'Example finding', log_source: 'syslog', log_line: 'example line', acknowledged: false };
+  w2.$ = { post: (url, data) => {
+    if (data.action === 'getFindings') return Promise.resolve({ findings: [plain], muted: [], status: { running: true, rules: 1 } });
+    if (mode === 'http500') return Promise.reject({ status: 500 });
+    if (mode === 'noanswer') return Promise.reject({ status: 0 });
+    if (mode === 'login') return Promise.resolve('<html><body>login</body></html>');
+    return Promise.resolve({ ok: true });
+  } };
+  w2.setInterval = () => 0; w2.confirm = () => true;
+  w2.eval(fs.readFileSync(path.join(P, 'assets/findings.js'), 'utf8'));
+  const note = () => d.getElementById('lk-note').textContent;
+  const rows = () => d.querySelectorAll('#findings-body tr:not(.lk-logrow)').length;
+  const ackBtn = () => [...d.querySelectorAll('#findings-body button')].find(b => b.textContent === 'Ack');
+  const step = (ms, f) => new Promise(r => setTimeout(() => { f(); r(); }, ms));
+  step(50, () => { mode = 'http500'; ackBtn().click(); })
+    .then(() => step(50, () => {
+      t('failed Ack: the note says what failed and why', note() === 'Acknowledge failed: the server answered HTTP 500.', note());
+      t('failed Ack: the finding is not marked acknowledged', !!ackBtn() && d.getElementById('count-total').textContent === '1');
+      mode = 'noanswer'; d.getElementById('btn-reload').click();
+    }))
+    .then(() => step(50, () => {
+      t('failed Reload Rules: neither "Rules reloaded." nor a bare "Failed."', note() === 'Reload rules failed: no answer from the server.', note());
+      mode = 'login'; d.getElementById('btn-clear').click();
+    }))
+    .then(() => step(50, () => {
+      t('a login page as the answer is a failure: the list is kept', rows() === 1 && /^Clear findings failed: the answer was not the expected one \(the session may have ended/.test(note()), rows() + ' ' + note());
+      mode = 'ok'; d.getElementById('btn-daemon').click();
+    }))
+    .then(() => step(50, () => {
+      t('a request that works still shows its result', note() === 'Done.', note());
+      ackBtn().click();
+    }))
+    .then(() => step(50, () => {
+      t('Ack that works still marks the finding', !ackBtn() && d.getElementById('count-total').textContent === '0');
+      process.exit(fail);
+    }));
+}

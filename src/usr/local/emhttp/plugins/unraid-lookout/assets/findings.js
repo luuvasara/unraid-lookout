@@ -29,10 +29,31 @@
 
     var ajaxURL = '/plugins/unraid-lookout/include/ajax.php';
 
+    // What the user asked for, for the message when the request fails.
+    function actionName(action, extra) {
+        if (action === 'daemonControl') return extra.cmd === 'restart' ? 'Reload rules' : (extra.cmd === 'stop' ? 'Stop daemon' : 'Start daemon');
+        if (action === 'mute') return extra.off ? 'Unmute' : 'Mute';
+        return { acknowledge: 'Acknowledge', acknowledgeAll: 'Acknowledge all', clearFindings: 'Clear findings' }[action] || action;
+    }
+
+    // Resolves with the endpoint's JSON answer. A failed request, or an answer that is not that JSON (a login page
+    // after the session ended), is a failure: the 10-second refresh rejects and its caller stays quiet; for every
+    // other action the reason is shown here, once for all callers, and the promise stays pending so that no
+    // caller's success step runs.
     function postAction(action, extra) {
         var data = {action: action};
         if (extra) { for (var k in extra) data[k] = extra[k]; }
-        return Promise.resolve($.post(ajaxURL, data));
+        return new Promise(function(resolve, reject) {
+            function failed(xhr) {
+                if (action === 'getFindings') { reject(xhr); return; }
+                var why = xhr && xhr.notJson ? 'the answer was not the expected one (the session may have ended: reload the page)'
+                    : (xhr && xhr.status ? 'the server answered HTTP ' + xhr.status : 'no answer from the server');
+                note(null, actionName(action, extra || {}) + ' failed: ' + why + '.');
+            }
+            $.post(ajaxURL, data).then(function(d) {
+                if (d && typeof d === 'object') resolve(d); else failed({ notJson: true });
+            }, failed);
+        });
     }
 
     function populateFilterOptions() {

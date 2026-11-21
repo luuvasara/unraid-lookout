@@ -20,7 +20,11 @@
       enabled: true
     };
     $.post('/plugins/unraid-lookout/include/ajax.php', { action: 'saveConfig', config: JSON.stringify(cfg) }, function (data) {
+      // an answer that is not the endpoint's JSON (a login page after the session ended) is not a save
+      if (!data || typeof data !== 'object') { el('lk-settings-note').textContent = 'Error: the settings were not saved: the answer was not the expected one (the session may have ended: reload the page).'; return; }
       el('lk-settings-note').textContent = data.ok ? 'Settings saved.' : 'Error: ' + (data.error || 'unknown');
+    }).fail(function (xhr) {
+      el('lk-settings-note').textContent = 'Error: the settings were not saved: ' + (xhr.status ? 'the server answered HTTP ' + xhr.status : 'no answer from the server') + '.';
     });
   });
 })();

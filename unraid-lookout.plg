@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
   <!ENTITY name      "unraid-lookout">
   <!ENTITY author    "Lookout project">
-  <!ENTITY version   "2026.11.12">
+  <!ENTITY version   "2026.11.21">
   <!ENTITY gitURL    "https://raw.githubusercontent.com/luuvasara/unraid-lookout/main">
   <!ENTITY pluginURL "&gitURL;/&name;.plg">
   <!ENTITY pkg       "&name;-&version;-x86_64-1.txz">
   <!ENTITY pkgURL    "&gitURL;/packages/&pkg;">
-  <!ENTITY md5       "8d67c23777864f0c46aa62f6966a3fbc">
+  <!ENTITY md5       "2ee87b1d61cafd7e22373c44708a79e5">
 ]>
 <!-- A rule database of known Unraid log errors, each with what it means and what to do, and a small daemon that checks
      the logs against it.
@@ -17,6 +17,9 @@
         launch="Settings/Lookout" pluginURL="&pluginURL;" support="https://github.com/luuvasara/unraid-lookout/issues">
 
 <CHANGES>
+###2026.11.21
+- Fix: a request that failed (the session ended, a server error, no answer) showed nothing. Save settings looked the same whether the settings were saved or not, and Start/Stop Daemon, Reload Rules, Ack, Acknowledge All, Clear All and Mute did nothing visible. Each now says what failed and why (example: Reload rules failed: the server answered HTTP 500).
+- Fix: when the server answered with a login page (the session had ended), Ack marked the finding as acknowledged on the page although nothing had changed on the server; Acknowledge All and Clear All had the same flaw. The page now keeps the list as it was and says that the session may have ended.
 ###2026.11.12
 - Log lines are cleaned before they are checked, stored or shown: colour codes and other terminal escape sequences, control characters and text direction overrides are taken out, and a line is cut at 8 KB.
 - A log line of several megabytes without a line end no longer stops Lookout from reading the lines after it.
